@@ -1,0 +1,20 @@
+{
+  "type": "postgres",
+  "host": "nasty",
+  "port": 5432,
+  "username": "tracker",
+  "password": "~lBik0WD!HF6",
+  "database": "tbd",
+  "synchronize": false,
+  "logging": false,
+  "migrationsRun": true,
+  "entities": [
+    "./**/models/*.entity.ts"
+  ],
+  "migrations": [
+    "src/migrations/**/*{.ts,.js}"
+  ],
+  "cli": {
+    "migrationsDir": "src/migrations"
+  }
+}
