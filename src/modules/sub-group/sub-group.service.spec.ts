@@ -2,9 +2,16 @@ import { TestingModule, Test } from '@nestjs/testing';
 import { SubGroupService, SubgroupModule } from '.';
 import { TestModule } from '../test/test.module';
 import { SubGroup } from './models';
-import { SubGroupRule } from '../sub-group-rule/models';
+import { SubGroupRule, RuleType } from '../sub-group-rule/models';
 
 jest.setTimeout(7000);
+
+function createRule(ruleText: string, type: RuleType) {
+  const rule = new SubGroupRule();
+  rule.text = ruleText;
+  rule.ruleType = type;
+  return rule;
+}
 
 describe('Sub group service', () => {
   let testingModule: TestingModule;
@@ -13,7 +20,7 @@ describe('Sub group service', () => {
   beforeAll(async () => {
     try {
       testingModule = await Test.createTestingModule({
-        imports: [SubgroupModule, TestModule],
+        imports: [SubgroupModule, SubGroupRule, TestModule],
         providers: [SubGroupService],
       }).compile();
     } catch (ex) {
@@ -24,6 +31,11 @@ describe('Sub group service', () => {
   });
 
   describe('Filter', () => {
-    it('Contain', async () => {});
+    it('Inludes', async () => {
+      const subGroup = new SubGroup();
+      subGroup.name = 'RandomSubGroup';
+      subGroup.addRule(createRule('Spice', RuleType.STARTS_WITH));
+      subGroup.addRule(createRule('Spice', RuleType.STARTS_WITH));
+    });
   });
 });

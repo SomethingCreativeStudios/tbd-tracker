@@ -7,7 +7,7 @@ export class SubGroupRule {
   id: number;
 
   @Column()
-  name: string;
+  text: string;
 
   @Column()
   ruleType: RuleType;

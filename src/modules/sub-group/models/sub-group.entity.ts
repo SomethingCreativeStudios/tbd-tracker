@@ -7,7 +7,7 @@ export class SubGroup {
   id: number;
 
   @Column()
-  text: String;
+  name: string;
 
   @OneToMany(
     type => SubGroupRule,
@@ -16,7 +16,7 @@ export class SubGroup {
   rules: SubGroupRule[];
 
   setText(text: string) {
-    this.text = text;
+    this.name = text;
     return this;
   }
 
