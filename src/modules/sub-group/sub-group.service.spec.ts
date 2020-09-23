@@ -58,5 +58,56 @@ describe('Sub group service', () => {
       expect(service.matchesSubgroup('Id0ls', manyRulesGroup)).toBeFalsy();
       expect(service.matchesSubgroup('Sports and Idols', manyRulesGroup)).toBeTruthy();
     });
+
+    it('Ends With', async () => {
+      const subGroup = createSubGroup('test', [{ text: 'wolf', type: RuleType.ENDS_WITH }]);
+      const manyRulesGroup = createSubGroup('test', [
+        { text: 'fox', type: RuleType.ENDS_WITH },
+        { text: 'salt', type: RuleType.ENDS_WITH },
+      ]);
+
+      expect(service.matchesSubgroup('spice and wolf', subGroup)).toBeTruthy();
+      expect(service.matchesSubgroup('wolf and salt', subGroup)).toBeFalsy();
+
+      expect(service.matchesSubgroup('fox and fox', manyRulesGroup)).toBeTruthy();
+      expect(service.matchesSubgroup('fox and salt', manyRulesGroup)).toBeTruthy();
+
+      expect(service.matchesSubgroup('fox and things', manyRulesGroup)).toBeFalsy();
+      expect(service.matchesSubgroup('fox salt', manyRulesGroup)).toBeTruthy();
+    });
+
+    it('Starts With', async () => {
+      const subGroup = createSubGroup('test', [{ text: 'wolf', type: RuleType.STARTS_WITH }]);
+      const manyRulesGroup = createSubGroup('test', [
+        { text: 'fox', type: RuleType.STARTS_WITH },
+        { text: 'salt', type: RuleType.STARTS_WITH },
+      ]);
+
+      expect(service.matchesSubgroup('wolf and spice', subGroup)).toBeTruthy();
+      expect(service.matchesSubgroup('spice and wolf', subGroup)).toBeFalsy();
+
+      expect(service.matchesSubgroup('fox and fox', manyRulesGroup)).toBeTruthy();
+      expect(service.matchesSubgroup('salt and fox', manyRulesGroup)).toBeTruthy();
+
+      expect(service.matchesSubgroup('f0x and things', manyRulesGroup)).toBeFalsy();
+      expect(service.matchesSubgroup('fox salt', manyRulesGroup)).toBeTruthy();
+    });
+
+    it('Regex', async () => {
+      const subGroup = createSubGroup('test', [{ text: 'sword\\d', type: RuleType.REGEX }]);
+      const manyRulesGroup = createSubGroup('test', [
+        { text: 'sword\\d', type: RuleType.REGEX },
+        { text: 'other\\d', type: RuleType.REGEX },
+      ]);
+
+      expect(service.matchesSubgroup('sword2', subGroup)).toBeTruthy();
+      expect(service.matchesSubgroup('sworded', subGroup)).toBeFalsy();
+
+      expect(service.matchesSubgroup('sword2', manyRulesGroup)).toBeTruthy();
+      expect(service.matchesSubgroup('other1 sword2', manyRulesGroup)).toBeTruthy();
+
+      expect(service.matchesSubgroup('sw0rd2', manyRulesGroup)).toBeFalsy();
+      expect(service.matchesSubgroup('sword2222210', manyRulesGroup)).toBeTruthy();
+    });
   });
 });
