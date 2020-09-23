@@ -37,7 +37,7 @@ describe('Formatter service', () => {
   describe('Anime Feeds', () => {
     it('Getting All', async () => {
       const result = await service.fetchItems(NyaaFeed.ANIME);
-      expect(result).toBeNull();
+      expect(result).not.toBeNull();
     });
   });
 });

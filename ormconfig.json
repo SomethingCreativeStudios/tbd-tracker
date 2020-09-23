@@ -4,7 +4,7 @@
   "port": 5432,
   "username": "tracker",
   "password": "~lBik0WD!HF6",
-  "database": "tbd",
+  "database": "tbd_test",
   "synchronize": false,
   "logging": false,
   "migrationsRun": true,
