@@ -13,6 +13,6 @@ export class SubGroupService {
   ) {}
 
   public matchesSubgroup(text: string, subgroup: SubGroup) {
-    return subgroup.rules.some(rule => this.subgroupRuleService.matchRule(text, subgroup.name, rule));
+    return subgroup.rules.some(rule => this.subgroupRuleService.matchRule(text, rule));
   }
 }

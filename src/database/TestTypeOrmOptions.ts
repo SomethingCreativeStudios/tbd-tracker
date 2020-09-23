@@ -16,7 +16,7 @@ export class TestTypeOrmOptions implements TypeOrmOptionsFactory {
       port: 5432,
       username: this.configService.databaseUserName,
       password: this.configService.databasePassword,
-      database: 'tbd_test',
+      database: 'tbd',
       synchronize: this.configService.firstRun,
       logging: false,
       migrationsRun: true,

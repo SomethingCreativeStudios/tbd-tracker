@@ -5,6 +5,8 @@ import { SubGroupService, SubgroupModule } from '../sub-group';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TestTypeOrmOptions } from '../../database/TestTypeOrmOptions';
 import { ConfigModule } from '../../config';
+import { INestApplication } from '@nestjs/common';
+import { SubgroupRuleModule } from '../sub-group-rule/sub-group-rule.module';
 
 jest.setTimeout(7000);
 
@@ -17,6 +19,7 @@ describe('Formatter service', () => {
       testingModule = await Test.createTestingModule({
         imports: [
           SubgroupModule,
+          SubgroupRuleModule,
           ConfigModule,
           TypeOrmModule.forRootAsync({
             useClass: TestTypeOrmOptions,
@@ -28,7 +31,7 @@ describe('Formatter service', () => {
       console.error(ex);
     }
 
-    service = testingModule.get(NyaaService);
+    service = testingModule?.get(NyaaService);
   });
 
   describe('Anime Feeds', () => {
