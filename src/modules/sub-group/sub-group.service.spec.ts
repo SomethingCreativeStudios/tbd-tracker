@@ -7,19 +7,21 @@ import { SubgroupRuleModule } from '../sub-group-rule/sub-group-rule.module';
 
 // jest.setTimeout(7000);
 
-function createRule(ruleText: string, type: RuleType) {
+function createRule(ruleText: string, type: RuleType, joinType: boolean) {
   const rule = new SubGroupRule();
   rule.text = ruleText;
   rule.ruleType = type;
+  rule.ruleJoin = joinType;
   return rule;
 }
 
-function createSubGroup(name: string, rules: { text: string; type: RuleType }[]) {
+function createSubGroup(name: string, rules: { text: string; type: RuleType; joinType: boolean }[], allPass: boolean = false) {
   const subGroup = new SubGroup();
   subGroup.name = name;
+  subGroup.allPass = allPass;
 
   rules.forEach(rule => {
-    subGroup.addRule(createRule(rule.text, rule.type));
+    subGroup.addRule(createRule(rule.text, rule.type, rule.joinType));
   });
 
   return subGroup;
@@ -43,11 +45,17 @@ describe('Sub group service', () => {
 
   describe('Filter', () => {
     it('Contains', async () => {
-      const subGroup = createSubGroup('test', [{ text: 'Spice', type: RuleType.CONTAINS }]);
+      const subGroup = createSubGroup('test', [{ text: 'Spice', type: RuleType.CONTAINS, joinType: true }]);
       const manyRulesGroup = createSubGroup('test', [
-        { text: 'idol', type: RuleType.CONTAINS },
-        { text: 'sport', type: RuleType.CONTAINS },
+        { text: 'idol', type: RuleType.CONTAINS, joinType: true },
+        { text: 'sport', type: RuleType.CONTAINS, joinType: true },
       ]);
+
+      const notGroup = createSubGroup('test', [{ text: 'idol', type: RuleType.CONTAINS, joinType: false }]);
+      const notManyGroups = createSubGroup('test', [
+        { text: 'idol', type: RuleType.CONTAINS, joinType: false },
+        { text: 'wolf', type: RuleType.CONTAINS, joinType: true },
+      ], true);
 
       expect(service.matchesSubgroup('spice and wolf', subGroup)).toBeTruthy();
       expect(service.matchesSubgroup('fox and salt', subGroup)).toBeFalsy();
@@ -57,13 +65,21 @@ describe('Sub group service', () => {
 
       expect(service.matchesSubgroup('Id0ls', manyRulesGroup)).toBeFalsy();
       expect(service.matchesSubgroup('Sports and Idols', manyRulesGroup)).toBeTruthy();
+      expect(service.matchesSubgroup('Idols', manyRulesGroup)).toBeTruthy();
+
+      expect(service.matchesSubgroup('Id0ls', notGroup)).toBeTruthy();
+      expect(service.matchesSubgroup('Sports and Idols', notGroup)).toBeFalsy();
+
+      expect(service.matchesSubgroup('Id0ls', notManyGroups)).toBeFalsy();
+      expect(service.matchesSubgroup('Wolf and Idols', notManyGroups)).toBeFalsy();
+      expect(service.matchesSubgroup('Wolf and spice', notManyGroups)).toBeTruthy();
     });
 
     it('Ends With', async () => {
-      const subGroup = createSubGroup('test', [{ text: 'wolf', type: RuleType.ENDS_WITH }]);
+      const subGroup = createSubGroup('test', [{ text: 'wolf', type: RuleType.ENDS_WITH, joinType: true }]);
       const manyRulesGroup = createSubGroup('test', [
-        { text: 'fox', type: RuleType.ENDS_WITH },
-        { text: 'salt', type: RuleType.ENDS_WITH },
+        { text: 'fox', type: RuleType.ENDS_WITH, joinType: true },
+        { text: 'salt', type: RuleType.ENDS_WITH, joinType: true },
       ]);
 
       expect(service.matchesSubgroup('spice and wolf', subGroup)).toBeTruthy();
@@ -77,10 +93,10 @@ describe('Sub group service', () => {
     });
 
     it('Starts With', async () => {
-      const subGroup = createSubGroup('test', [{ text: 'wolf', type: RuleType.STARTS_WITH }]);
+      const subGroup = createSubGroup('test', [{ text: 'wolf', type: RuleType.STARTS_WITH, joinType: true }]);
       const manyRulesGroup = createSubGroup('test', [
-        { text: 'fox', type: RuleType.STARTS_WITH },
-        { text: 'salt', type: RuleType.STARTS_WITH },
+        { text: 'fox', type: RuleType.STARTS_WITH, joinType: true },
+        { text: 'salt', type: RuleType.STARTS_WITH, joinType: true },
       ]);
 
       expect(service.matchesSubgroup('wolf and spice', subGroup)).toBeTruthy();
@@ -94,10 +110,10 @@ describe('Sub group service', () => {
     });
 
     it('Regex', async () => {
-      const subGroup = createSubGroup('test', [{ text: 'sword\\d', type: RuleType.REGEX }]);
+      const subGroup = createSubGroup('test', [{ text: 'sword\\d', type: RuleType.REGEX, joinType: true }]);
       const manyRulesGroup = createSubGroup('test', [
-        { text: 'sword\\d', type: RuleType.REGEX },
-        { text: 'other\\d', type: RuleType.REGEX },
+        { text: 'sword\\d', type: RuleType.REGEX, joinType: true },
+        { text: 'other\\d', type: RuleType.REGEX, joinType: true },
       ]);
 
       expect(service.matchesSubgroup('sword2', subGroup)).toBeTruthy();

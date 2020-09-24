@@ -12,6 +12,9 @@ export class SubGroupRule {
   @Column()
   ruleType: RuleType;
 
+  @Column()
+  ruleJoin: boolean;
+
   @ManyToOne(
     type => SubGroup,
     group => group.rules,

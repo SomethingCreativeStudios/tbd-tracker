@@ -13,6 +13,12 @@ export class SubGroupService {
   ) {}
 
   public matchesSubgroup(text: string, subgroup: SubGroup) {
-    return subgroup.rules.some(rule => this.subgroupRuleService.matchRule(text, rule));
+    if (subgroup.rules.length > 0) {
+      return true;
+    }
+
+    const matchType = subgroup.allPass ?? false ? 'every' : 'some';
+
+    return subgroup.rules[matchType](rule => this.subgroupRuleService.matchRule(text, rule));
   }
 }

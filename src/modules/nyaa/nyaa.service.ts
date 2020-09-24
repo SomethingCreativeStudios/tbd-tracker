@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import * as Parser from 'rss-parser';
 import { SubGroup } from '../sub-group/models';
 import { SubGroupService } from '../sub-group';
+import { NyaaRSSItem } from './models/nyaaRSSItem';
+import { NyaaItem } from './models/nyaaItem';
 
 @Injectable()
 export class NyaaService {
@@ -13,17 +15,26 @@ export class NyaaService {
    * Get all items in the specified feed
    * @param feed
    */
-  public async fetchItems(feed: NyaaFeed) {
+  public async fetchItems(feed: NyaaFeed): Promise<NyaaItem[]> {
     try {
       const { items = [] } = (await this.parser.parseURL(feed)) || {};
 
-      return items;
+      return (items as NyaaRSSItem[]).map(item => {
+        return {
+          downloadLink: item.link,
+          publishedDate: new Date(item.isoDate),
+          itemName: item.title,
+          subGroupName: item.title,
+        };
+      });
     } catch (ex) {
       console.error(ex);
     }
+
+    return [];
   }
 
-  public filterSubGroups(items: Parser.Item[], groups: SubGroup[]) {
+  public filterSubGroups(items: NyaaItem[], groups: SubGroup[]) {
     this.subgroupService.matchesSubgroup('test', new SubGroup());
   }
 }

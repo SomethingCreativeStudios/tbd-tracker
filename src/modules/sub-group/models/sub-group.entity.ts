@@ -9,6 +9,9 @@ export class SubGroup {
   @Column()
   name: string;
 
+  @Column()
+  allPass: boolean;
+
   @OneToMany(
     type => SubGroupRule,
     rule => rule.subGroup,
