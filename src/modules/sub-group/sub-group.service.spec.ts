@@ -31,7 +31,7 @@ describe('Sub group service', () => {
   let testingModule: TestingModule;
   let service: SubGroupService;
 
-  beforeAll(async () => {
+  beforeAll(async done => {
     try {
       testingModule = await Test.createTestingModule({
         imports: [SubgroupModule, SubgroupRuleModule, TestModule],
@@ -41,6 +41,7 @@ describe('Sub group service', () => {
     }
 
     service = testingModule.get(SubGroupService);
+    done();
   });
 
   describe('Filter', () => {
@@ -52,10 +53,14 @@ describe('Sub group service', () => {
       ]);
 
       const notGroup = createSubGroup('test', [{ text: 'idol', type: RuleType.CONTAINS, joinType: false }]);
-      const notManyGroups = createSubGroup('test', [
-        { text: 'idol', type: RuleType.CONTAINS, joinType: false },
-        { text: 'wolf', type: RuleType.CONTAINS, joinType: true },
-      ], true);
+      const notManyGroups = createSubGroup(
+        'test',
+        [
+          { text: 'idol', type: RuleType.CONTAINS, joinType: false },
+          { text: 'wolf', type: RuleType.CONTAINS, joinType: true },
+        ],
+        true,
+      );
 
       expect(service.matchesSubgroup('spice and wolf', subGroup)).toBeTruthy();
       expect(service.matchesSubgroup('fox and salt', subGroup)).toBeFalsy();

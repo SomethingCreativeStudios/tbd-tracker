@@ -24,7 +24,7 @@ export class NyaaService {
           downloadLink: item.link,
           publishedDate: new Date(item.isoDate),
           itemName: item.title,
-          subGroupName: item.title,
+          subGroupName: item.title.match(/<b>(.*?)<\/b>/g)?.[0] ?? '',
         };
       });
     } catch (ex) {
@@ -34,8 +34,18 @@ export class NyaaService {
     return [];
   }
 
-  public filterSubGroups(items: NyaaItem[], groups: SubGroup[]) {
-    this.subgroupService.matchesSubgroup('test', new SubGroup());
+  public findValidItems(items: NyaaItem[], groups: SubGroup[]) {
+    return items.filter(item => this.isValidItem(item, groups));
+  }
+
+  public isValidItem(item: NyaaItem, groups: SubGroup[]) {
+    const validSubgroups = groups.filter(group => group.name.toLowerCase() === item.subGroupName.toLowerCase());
+
+    if (validSubgroups.length === 0) {
+      return false;
+    }
+
+    return validSubgroups.some(group => this.subgroupService.matchesSubgroup(item.itemName, group));
   }
 }
 
