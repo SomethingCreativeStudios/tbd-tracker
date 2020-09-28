@@ -13,12 +13,13 @@ export class SubGroupService {
   ) {}
 
   public matchesSubgroup(text: string, subgroup: SubGroup) {
-    if (subgroup.rules.length > 0) {
+    if (subgroup.rules.length === 0) {
       return true;
     }
 
-    const matchType = subgroup.allPass ?? false ? 'every' : 'some';
+    const passesGood = subgroup.rules.filter(rule => rule.isPositive).some(rule => this.subgroupRuleService.matchRule(text, rule));
+    const passesBad = subgroup.rules.filter(rule => !rule.isPositive).some(rule => this.subgroupRuleService.matchRule(text, rule));
 
-    return subgroup.rules[matchType](rule => this.subgroupRuleService.matchRule(text, rule));
+    return passesGood && !passesBad;
   }
 }

@@ -11,6 +11,7 @@ import { TypeOrmOptions } from '../database';
 import { TaskModule } from '../modules/tasks';
 import { SubgroupModule } from '../modules/sub-group';
 import { SubgroupRuleModule } from '../modules/sub-group-rule/sub-group-rule.module';
+import { AnimeFolderService } from '../modules/anime-folder/anime-folder.service';
 
 @Module({
   imports: [
@@ -24,7 +25,7 @@ import { SubgroupRuleModule } from '../modules/sub-group-rule/sub-group-rule.mod
     }),
   ],
   controllers: [AppController],
-  providers: [NyaaService, AppService],
+  providers: [NyaaService, AppService, AnimeFolderService],
 })
 export class AppModule {
   constructor(private readonly connection: Connection) {}

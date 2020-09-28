@@ -13,7 +13,7 @@ export class SubGroupRule {
   ruleType: RuleType;
 
   @Column()
-  ruleJoin: boolean;
+  isPositive: boolean;
 
   @ManyToOne(
     type => SubGroup,
@@ -27,4 +27,5 @@ export enum RuleType {
   STARTS_WITH = 'starts with',
   ENDS_WITH = 'ends with',
   REGEX = 'regex',
+  BLANK = 'blank',
 }

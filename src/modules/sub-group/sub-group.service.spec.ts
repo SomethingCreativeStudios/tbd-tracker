@@ -11,14 +11,13 @@ function createRule(ruleText: string, type: RuleType, joinType: boolean) {
   const rule = new SubGroupRule();
   rule.text = ruleText;
   rule.ruleType = type;
-  rule.ruleJoin = joinType;
+  rule.isPositive = joinType;
   return rule;
 }
 
-function createSubGroup(name: string, rules: { text: string; type: RuleType; joinType: boolean }[], allPass: boolean = false) {
+function createSubGroup(name: string, rules: { text: string; type: RuleType; joinType: boolean }[]) {
   const subGroup = new SubGroup();
   subGroup.name = name;
-  subGroup.allPass = allPass;
 
   rules.forEach(rule => {
     subGroup.addRule(createRule(rule.text, rule.type, rule.joinType));
@@ -53,14 +52,10 @@ describe('Sub group service', () => {
       ]);
 
       const notGroup = createSubGroup('test', [{ text: 'idol', type: RuleType.CONTAINS, joinType: false }]);
-      const notManyGroups = createSubGroup(
-        'test',
-        [
-          { text: 'idol', type: RuleType.CONTAINS, joinType: false },
-          { text: 'wolf', type: RuleType.CONTAINS, joinType: true },
-        ],
-        true,
-      );
+      const notManyGroups = createSubGroup('test', [
+        { text: 'idol', type: RuleType.CONTAINS, joinType: false },
+        { text: 'wolf', type: RuleType.CONTAINS, joinType: true },
+      ]);
 
       expect(service.matchesSubgroup('spice and wolf', subGroup)).toBeTruthy();
       expect(service.matchesSubgroup('fox and salt', subGroup)).toBeFalsy();

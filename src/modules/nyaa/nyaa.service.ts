@@ -25,6 +25,7 @@ export class NyaaService {
           publishedDate: new Date(item.isoDate),
           itemName: item.title,
           subGroupName: item.title.match(/<b>(.*?)<\/b>/g)?.[0] ?? '',
+          resolution: this.findResolution(item.title),
         };
       });
     } catch (ex) {
@@ -46,6 +47,22 @@ export class NyaaService {
     }
 
     return validSubgroups.some(group => this.subgroupService.matchesSubgroup(item.itemName, group));
+  }
+
+  private findResolution(title: string) {
+    if (title.includes('720') || title.includes('720p')) {
+      return '720';
+    }
+
+    if (title.includes('1080') || title.includes('720p')) {
+      return '1080';
+    }
+
+    if (title.includes('480') || title.includes('480')) {
+      return '480';
+    }
+
+    return 'ANY';
   }
 }
 

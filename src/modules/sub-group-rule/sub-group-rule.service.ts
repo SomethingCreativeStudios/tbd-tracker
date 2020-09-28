@@ -11,26 +11,25 @@ export class SubGroupRuleService {
   ) {}
 
   public matchRule(text: string, rule: SubGroupRule) {
-    let result = true;
     const treatedText = text.toLowerCase();
     const ruleText = rule.text.toLowerCase();
 
     if (rule.ruleType === RuleType.CONTAINS) {
-      result = treatedText.includes(ruleText);
+      return treatedText.includes(ruleText);
     }
 
     if (rule.ruleType === RuleType.ENDS_WITH) {
-      result = treatedText.endsWith(ruleText);
+      return treatedText.endsWith(ruleText);
     }
 
     if (rule.ruleType === RuleType.STARTS_WITH) {
-      result = treatedText.startsWith(ruleText);
+      return treatedText.startsWith(ruleText);
     }
 
     if (rule.ruleType === RuleType.REGEX) {
-      result = treatedText.match(new RegExp(ruleText)).length > 0;
+      return treatedText.match(new RegExp(ruleText)).length > 0;
     }
 
-    return rule.ruleJoin ? result : !result;
+    return rule.ruleType === RuleType.BLANK;
   }
 }

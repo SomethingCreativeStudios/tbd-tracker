@@ -10,7 +10,7 @@ export class SubGroup {
   name: string;
 
   @Column()
-  allPass: boolean;
+  preferedResultion: '720' | '1080' | '480';
 
   @OneToMany(
     type => SubGroupRule,

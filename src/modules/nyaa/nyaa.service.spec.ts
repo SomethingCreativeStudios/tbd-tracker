@@ -16,14 +16,14 @@ function createRule(ruleText: string, type: RuleType, joinType: boolean) {
   const rule = new SubGroupRule();
   rule.text = ruleText;
   rule.ruleType = type;
-  rule.ruleJoin = joinType;
+  rule.isPositive = joinType;
   return rule;
 }
 
-function createSubGroup(name: string, rules: { text: string; type: RuleType; joinType: boolean }[], allPass: boolean = true) {
+function createSubGroup(name: string, rules: { text: string; type: RuleType; joinType: boolean }[]) {
   const subGroup = new SubGroup();
   subGroup.name = name;
-  subGroup.allPass = allPass;
+  subGroup.preferedResultion = '720';
 
   rules.forEach(rule => {
     subGroup.addRule(createRule(rule.text, rule.type, rule.joinType));
@@ -32,8 +32,9 @@ function createSubGroup(name: string, rules: { text: string; type: RuleType; joi
   return subGroup;
 }
 
-function createNyaaItem(subgroup, link): NyaaItem {
+function createNyaaItem(subgroup, link, resolution = '720'): NyaaItem {
   return {
+    resolution,
     downloadLink: 'test',
     publishedDate: new Date(),
     subGroupName: subgroup,
@@ -61,14 +62,19 @@ const subgroups = [
     { text: 'Attack on Titan', joinType: true, type: RuleType.STARTS_WITH },
     { text: 'Attack on Eoten', joinType: false, type: RuleType.STARTS_WITH },
     { text: 'Ghost in the Shell', joinType: false, type: RuleType.STARTS_WITH },
+    { text: '', joinType: true, type: RuleType.BLANK },
   ]),
   createSubGroup('Doki', [
     { text: 'Idol Time PriPara', joinType: true, type: RuleType.STARTS_WITH },
     { text: 'Mobamas', joinType: true, type: RuleType.STARTS_WITH },
     { text: 'Angel Beats!', joinType: false, type: RuleType.STARTS_WITH },
     { text: 'B Gata H Kei', joinType: false, type: RuleType.STARTS_WITH },
+    { text: '', joinType: true, type: RuleType.BLANK },
   ]),
-  createSubGroup('Underwater', [{ text: 'kill la kill', joinType: false, type: RuleType.STARTS_WITH }]),
+  createSubGroup('Underwater', [
+    { text: 'kill la kill', joinType: false, type: RuleType.STARTS_WITH },
+    { text: '', joinType: true, type: RuleType.BLANK },
+  ]),
 ];
 
 describe('Formatter service', () => {
@@ -103,9 +109,30 @@ describe('Formatter service', () => {
       done();
     });
 
-    it('Passes good', async done => {
-      const result = service.findValidItems([createNyaaItem('commie', 'go! princess precure - 100.mkv')], subgroups);
-      expect(result.length).toBeGreaterThan(0);
+    it('Link Filter', async done => {
+      const goodCommie = service.findValidItems(
+        [
+          createNyaaItem('commie', 'go! princess precure - 100.mkv'),
+          createNyaaItem('commie', 'go! princess precure - 89.mkv'),
+          createNyaaItem('commie', 'Ghost in the Shell - 89.mkv'),
+          createNyaaItem('commie', 'ghost in the shell - 89.mkv'),
+        ],
+        subgroups,
+      );
+
+      const goodDoki = service.findValidItems(
+        [
+          createNyaaItem('doki', 'Idol Time PriPara - 100.mkv'),
+          createNyaaItem('dOki', 'Mobamas - 89.mkv'),
+          createNyaaItem('doki', 'B Gata H Kei - 89.mkv'),
+          createNyaaItem('doki', 'another show - 89.mkv'),
+        ],
+        subgroups,
+      );
+
+      expect(goodCommie.length).toEqual(2);
+      expect(goodDoki.length).toEqual(3);
+
       done();
     });
   });
