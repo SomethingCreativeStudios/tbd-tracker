@@ -1,16 +1,18 @@
 import { TestingModule, Test } from '@nestjs/testing';
+import { existsSync, removeSync } from 'fs-extra';
 import { NyaaService, NyaaFeed } from './nyaa.service';
 import { SubGroup } from '../sub-group/models';
-import { SubGroupService, SubgroupModule } from '../sub-group';
+import { SubgroupModule } from '../sub-group';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TestTypeOrmOptions } from '../../database/TestTypeOrmOptions';
 import { ConfigModule } from '../../config';
-import { INestApplication } from '@nestjs/common';
 import { SubgroupRuleModule } from '../sub-group-rule/sub-group-rule.module';
 import { RuleType, SubGroupRule } from '../sub-group-rule/models';
 import { NyaaItem } from './models/nyaaItem';
+import { SocketModule } from '../socket/socket.module';
+import { AppGateway } from '../../app/app.gateway';
 
-jest.setTimeout(7000);
+jest.setTimeout(700000);
 
 function createRule(ruleText: string, type: RuleType, joinType: boolean) {
   const rule = new SubGroupRule();
@@ -87,12 +89,13 @@ describe('Formatter service', () => {
         imports: [
           SubgroupModule,
           SubgroupRuleModule,
+          SocketModule,
           ConfigModule,
           TypeOrmModule.forRootAsync({
             useClass: TestTypeOrmOptions,
           }),
         ],
-        providers: [NyaaService],
+        providers: [NyaaService, AppGateway],
       }).compile();
     } catch (ex) {
       console.error(ex);
@@ -100,6 +103,27 @@ describe('Formatter service', () => {
 
     service = testingModule?.get(NyaaService);
     done();
+  });
+
+  describe('Highway Service', () => {
+    const rootPath = 'C:\\Users\\eric-\\Documents\\download_test';
+    it('Test Download', async done => {
+      const fileName = "Maou Gakuin no Futekigousha [WN]";
+
+      if (existsSync(`${rootPath}\\${fileName}`)) {
+        removeSync(`${rootPath}\\${fileName}`);
+      }
+
+      expect(existsSync(`${rootPath}\\${fileName}`)).toBeFalsy();
+
+      const result = await service.downloadShow('https://nyaa.si/download/1284616.torrent', rootPath);
+
+      expect(result.error).toEqual(undefined);
+      expect(existsSync(`${rootPath}\\${fileName}`)).toBeTruthy();
+
+      removeSync(`${rootPath}\\${fileName}`);
+      done();
+    });
   });
 
   describe('Anime Feeds', () => {

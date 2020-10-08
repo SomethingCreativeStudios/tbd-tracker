@@ -1,4 +1,4 @@
-import { PrimaryGeneratedColumn, Entity, Column, OneToMany } from 'typeorm';
+import { PrimaryGeneratedColumn, Entity, Column, OneToMany, JoinColumn } from 'typeorm';
 import { SubGroupRule } from '../../sub-group-rule/models/sub-group-rule.entity';
 
 @Entity()
@@ -15,6 +15,7 @@ export class SubGroup {
   @OneToMany(
     type => SubGroupRule,
     rule => rule.subGroup,
+    { cascade: true },
   )
   rules: SubGroupRule[];
 

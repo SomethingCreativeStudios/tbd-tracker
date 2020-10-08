@@ -1,7 +1,9 @@
 /* tslint:disable */
-import { ReflectMetadata } from '@nestjs/common';
+import { applyDecorators, createParamDecorator, ExecutionContext, SetMetadata } from '@nestjs/common';
 
-export const Roles = (...roles: RoleName[]) => ReflectMetadata('roles', roles);
+export function Roles(...roles: RoleName[]) {
+  return applyDecorators(SetMetadata('roles', roles));
+}
 
 export enum RoleName {
   SUPER_ADMIN = -1,

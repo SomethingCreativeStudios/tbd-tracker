@@ -12,6 +12,8 @@ import { TaskModule } from '../modules/tasks';
 import { SubgroupModule } from '../modules/sub-group';
 import { SubgroupRuleModule } from '../modules/sub-group-rule/sub-group-rule.module';
 import { AnimeFolderService } from '../modules/anime-folder/anime-folder.service';
+import { SocketModule } from '../modules/socket/socket.module';
+import { AppGateway } from './app.gateway';
 
 @Module({
   imports: [
@@ -20,12 +22,13 @@ import { AnimeFolderService } from '../modules/anime-folder/anime-folder.service
     TaskModule,
     SubgroupModule,
     SubgroupRuleModule,
+    SocketModule,
     TypeOrmModule.forRootAsync({
       useClass: TypeOrmOptions,
     }),
   ],
   controllers: [AppController],
-  providers: [NyaaService, AppService, AnimeFolderService],
+  providers: [NyaaService, AppService, AnimeFolderService, AppGateway],
 })
 export class AppModule {
   constructor(private readonly connection: Connection) {}

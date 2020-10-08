@@ -4,8 +4,9 @@ import { TestModule } from '../test/test.module';
 import { SubGroup } from './models';
 import { SubGroupRule, RuleType } from '../sub-group-rule/models';
 import { SubgroupRuleModule } from '../sub-group-rule/sub-group-rule.module';
+import { SubGroupRuleService } from '../sub-group-rule/sub-group-rule.service';
 
-// jest.setTimeout(7000);
+jest.setTimeout(3000);
 
 function createRule(ruleText: string, type: RuleType, joinType: boolean) {
   const rule = new SubGroupRule();
@@ -18,6 +19,7 @@ function createRule(ruleText: string, type: RuleType, joinType: boolean) {
 function createSubGroup(name: string, rules: { text: string; type: RuleType; joinType: boolean }[]) {
   const subGroup = new SubGroup();
   subGroup.name = name;
+  subGroup.preferedResultion = '720';
 
   rules.forEach(rule => {
     subGroup.addRule(createRule(rule.text, rule.type, rule.joinType));
@@ -29,6 +31,7 @@ function createSubGroup(name: string, rules: { text: string; type: RuleType; joi
 describe('Sub group service', () => {
   let testingModule: TestingModule;
   let service: SubGroupService;
+  let ruleService: SubGroupRuleService;
 
   beforeAll(async done => {
     try {
@@ -40,7 +43,73 @@ describe('Sub group service', () => {
     }
 
     service = testingModule.get(SubGroupService);
+    ruleService = testingModule.get(SubGroupRuleService);
+
     done();
+  });
+
+  describe('CRUD', () => {
+    it('Create', async () => {
+      const subGroup = createSubGroup('test', [{ text: 'Spice', type: RuleType.CONTAINS, joinType: true }]);
+      const newGroup = await service.create(subGroup);
+
+      expect(newGroup.id).not.toBeNull();
+      expect(newGroup.rules.length).toBeGreaterThan(0);
+      expect(newGroup.rules[0].id).not.toBeNull();
+
+      expect(await ruleService.find({ id: newGroup.rules[0].id })).not.toEqual([]);
+    });
+
+    it('Read', async () => {
+      const subGroup = createSubGroup('test', [{ text: 'Spice', type: RuleType.CONTAINS, joinType: true }]);
+      const newGroup = await service.create(subGroup);
+
+      expect(newGroup.id).not.toBeNull();
+      expect(newGroup.rules.length).toBeGreaterThan(0);
+      expect(newGroup.rules[0].id).not.toBeNull();
+
+      const foundGroup = await service.find({ id: newGroup.id });
+
+      expect(foundGroup.length).toEqual(1);
+      expect(foundGroup[0].id).toEqual(newGroup.id);
+    });
+
+    it('Update', async done => {
+      const subGroup = createSubGroup('test', [{ text: 'Spice', type: RuleType.CONTAINS, joinType: true }]);
+      const newGroup = await service.create(subGroup);
+
+      expect(newGroup.name).toEqual('test');
+      expect(newGroup.rules[0].text).toEqual('Spice');
+
+      newGroup.name = 'New test';
+      newGroup.rules[0].text = 'New Spice';
+
+      const updatedGroup = await service.update(newGroup);
+
+      expect(updatedGroup.name).toEqual('New test');
+      expect(updatedGroup.rules[0].text).toEqual('New Spice');
+
+      const foundGroup = await service.find({ id: newGroup.id });
+
+      expect(foundGroup[0].name).toEqual('New test');
+      expect(foundGroup[0].rules[0].text).toEqual('New Spice');
+
+      done();
+    });
+
+    it('Delete', async () => {
+      const subGroup = createSubGroup('test', [{ text: 'Spice', type: RuleType.CONTAINS, joinType: true }]);
+      const newGroup = await service.create(subGroup);
+
+      expect(newGroup.id).not.toBeNull();
+      expect(newGroup.rules.length).toBeGreaterThan(0);
+      expect(newGroup.rules[0].id).not.toBeNull();
+
+      await service.delete(newGroup);
+
+      expect(await service.find({ id: newGroup.id })).toEqual([]);
+      expect(await ruleService.find({ id: newGroup.rules[0].id })).toEqual([]);
+    });
   });
 
   describe('Filter', () => {
