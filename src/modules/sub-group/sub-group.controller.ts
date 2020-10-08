@@ -7,7 +7,7 @@ import { SubGroupRuleService } from '../sub-group-rule/sub-group-rule.service';
 import { DeepPartial } from 'typeorm';
 
 @ApiTags('Subgroup')
-@Controller('api/v1/Subgroup')
+@Controller('api/v1/subgroup')
 export class SubgroupController {
   constructor(private readonly subgroupService: SubGroupService, private readonly subgroupRuleService: SubGroupRuleService) {}
 

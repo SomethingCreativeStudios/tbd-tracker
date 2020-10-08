@@ -1,3 +1,9 @@
+import { SeriesModule } from './../modules/series/series.module';
+import { SeriesService } from './../modules/series/series.service';
+import { SeriesController } from './../modules/series/series.controller';
+import { SeasonModule } from './../modules/season/season.module';
+import { SeasonService } from './../modules/season/season.service';
+import { SeasonController } from './../modules/season/season.controller';
 import { NyaaService } from '../modules/nyaa/nyaa.service';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -17,6 +23,8 @@ import { AppGateway } from './app.gateway';
 
 @Module({
   imports: [
+    SeriesModule,
+    SeasonModule,
     UserModule,
     ConfigModule,
     TaskModule,
