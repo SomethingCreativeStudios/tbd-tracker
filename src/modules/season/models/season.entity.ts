@@ -1,4 +1,4 @@
-import { Series } from '../../../modules/series/models/series.entitiy';
+import { Series } from '../../series/models/series.entity';
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 
 @Entity()
@@ -6,13 +6,13 @@ export class Season {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ type: 'text' })
   name: SeasonName;
 
   @Column()
   year: number;
 
-  @Column()
+  @Column('decimal', { precision: 5, scale: 2, nullable: true })
   overallScore: number;
 
   @OneToMany(
@@ -28,4 +28,24 @@ export enum SeasonName {
   WINTER = 'winter',
   SUMMER = 'summer',
   SPRING = 'spring',
+}
+
+export function toSeasonName(name: string) {
+  if (name === 'fall') {
+    return SeasonName.FALL;
+  }
+
+  if (name === 'winter') {
+    return SeasonName.WINTER;
+  }
+
+  if (name === 'summer') {
+    return SeasonName.SUMMER;
+  }
+
+  if (name === 'spring') {
+    return SeasonName.SPRING;
+  }
+
+  return SeasonName.FALL;
 }

@@ -1,5 +1,6 @@
-import { PrimaryGeneratedColumn, Entity, Column, OneToMany, JoinColumn } from 'typeorm';
+import { PrimaryGeneratedColumn, Entity, Column, OneToMany, JoinColumn, ManyToMany, ManyToOne } from 'typeorm';
 import { SubGroupRule } from '../../sub-group-rule/models/sub-group-rule.entity';
+import { Series } from '../../../modules/series/models';
 
 @Entity()
 export class SubGroup {
@@ -18,6 +19,12 @@ export class SubGroup {
     { cascade: true },
   )
   rules: SubGroupRule[];
+
+  @ManyToOne(
+    type => Series,
+    series => series.subgroups,
+  )
+  series: Series;
 
   setText(text: string) {
     this.name = text;

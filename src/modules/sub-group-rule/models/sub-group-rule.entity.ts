@@ -20,6 +20,7 @@ export class SubGroupRule {
     group => group.rules,
   )
   subGroup: SubGroup;
+
 }
 
 export enum RuleType {

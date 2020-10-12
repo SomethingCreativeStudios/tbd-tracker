@@ -1,4 +1,4 @@
 import { Repository } from 'typeorm';
-import { Season } from './models/season.entity';
+import { Season } from './models';
 
 export class SeasonRepository extends Repository<Season> {}

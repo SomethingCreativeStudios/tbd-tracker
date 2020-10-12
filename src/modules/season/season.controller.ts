@@ -1,8 +1,8 @@
 import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { Series } from '../series/models/series.entitiy';
+import { Series } from '../series/models/series.entity';
 import { SeriesService } from '../series/series.service';
-import { Season } from './models/season.entity';
+import { Season, SeasonName } from './models/season.entity';
 import { SeasonService } from './season.service';
 
 @ApiTags('Season')
@@ -23,6 +23,11 @@ export class SeasonController {
   @Post()
   async create(@Body() season: Season): Promise<Season> {
     return this.seasonService.create(season);
+  }
+
+  @Post('mal/:year/:seasonName')
+  async createFromSeason(@Param('year') year: number, @Param('seasonName') seasonName: SeasonName): Promise<Season> {
+    return this.seasonService.generateFromSeason(seasonName, year);
   }
 
   @Post('/series/:seasonId')

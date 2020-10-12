@@ -1,4 +1,4 @@
 import { Repository } from 'typeorm';
-import { Series } from './models/series.entitiy';
+import { Series } from './models';
 
 export class SeriesRepository extends Repository<Series> {}
