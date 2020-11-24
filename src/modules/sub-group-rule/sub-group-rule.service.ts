@@ -3,6 +3,7 @@ import { SubGroupRule, RuleType } from './models';
 import { SubGroupRuleRepository } from './sub-group-rule.repository';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeepPartial } from 'typeorm';
+import { SubGroup } from '../sub-group/models';
 
 @Injectable()
 export class SubGroupRuleService {
@@ -33,9 +34,16 @@ export class SubGroupRuleService {
     return this.subgroupRuleRepository.find();
   }
 
-  public matchRule(text: string, rule: SubGroupRule) {
-    const treatedText = text.toLowerCase();
+  public matchRule(text: string, rule: SubGroupRule, subgroup: SubGroup) {
+    const treatedText = text
+      .toLowerCase()
+      .replace(`[${subgroup.name.toLowerCase()}]`, '')
+      .trim();
     const ruleText = rule.text.toLowerCase();
+
+    if (!this.matchedResolutions(text, subgroup.preferedResultion)) {
+      return false;
+    }
 
     if (rule.ruleType === RuleType.CONTAINS) {
       return treatedText.includes(ruleText);
@@ -54,5 +62,15 @@ export class SubGroupRuleService {
     }
 
     return rule.ruleType === RuleType.BLANK;
+  }
+
+  private matchedResolutions(text: string, preferredResolution: string) {
+    const allResolutions = ['480', '540', '720', '1080', '480p', '540p', '720p', '1080p', '360', '360p'];
+
+    if (text.includes(`[${preferredResolution}]`) || text.includes(`[${preferredResolution}p]`)) {
+      return true;
+    }
+
+    return !allResolutions.some(res => text.includes(`[${res}]`));
   }
 }

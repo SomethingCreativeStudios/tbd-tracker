@@ -28,6 +28,7 @@ describe('Formatter service', () => {
   });
 
   describe('Series', () => {
+
     it('Auto Generate', async done => {
       const show = await service.createFromMALName('Spice and Wolf');
       expect(show.name.toLowerCase()).toContain('ookami to koushinryou');

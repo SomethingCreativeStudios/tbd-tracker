@@ -7,17 +7,58 @@ import { Search, Anime } from '../../jikan';
 import { SeasonService } from '../season/season.service';
 import { Anime as AnimeSeason } from '../../jikan/interfaces/season/Season';
 
+import { AuthorizationCode } from 'simple-oauth2';
+import { SubGroupService } from '../sub-group';
+import { SeasonName } from '../season/models';
+import { SettingsService } from '../settings/settings.service';
+import { SubGroup } from '../sub-group/models';
+import { SubGroupRule, RuleType } from '../sub-group-rule/models';
+
+const config = {
+  client: {
+    id: '3d6658c97562e9a4d2c5234258b08878',
+    secret: '35b47ce2ed7e13430ec64fa4cba5d2caf7494f88ba13d1d30d5c4af5296c62e4',
+  },
+  auth: {
+    tokenHost: 'https://myanimelist.net/v1/oauth2/authorize',
+  },
+};
+
 @Injectable()
 export class SeriesService {
   constructor(
     @InjectRepository(Series)
     private readonly seriesRepository: SeriesRepository,
 
+    @Inject(forwardRef(() => SubGroupService))
+    private subgroupService: SubGroupService,
+
     @Inject(forwardRef(() => SeasonService))
     private seasonService: SeasonService,
+
+    @Inject(SettingsService)
+    private readonly settingsService: SettingsService,
   ) {}
 
   public async create(series: Series) {
+    const { value: subgroupName } = await this.settingsService.findByKey('defaultSubgroup');
+
+    if (!series.subgroups || series.subgroups.length === 0) {
+      const subGroup = new SubGroup();
+
+      subGroup.name = subgroupName;
+      subGroup.preferedResultion = '720';
+
+      const rule = new SubGroupRule();
+      rule.isPositive = true;
+      rule.ruleType = RuleType.STARTS_WITH;
+      rule.text = series.name;
+
+      subGroup.addRule(rule);
+
+      series.subgroups = [subGroup];
+    }
+
     return this.seriesRepository.save(series);
   }
 
@@ -33,6 +74,30 @@ export class SeriesService {
     );
   }
 
+  public async getToken() {
+    console.log('TEST');
+    const client = new AuthorizationCode(config);
+
+    const authorizationUri = client.authorizeURL({
+      redirect_uri: 'http://localhost:3000/callback',
+    });
+
+    const tokenParams = {
+      code: 'AUTHORIZATION_CODE',
+      redirect_uri: 'http://localhost:3000/callback',
+      code_challenge_method: 'plain',
+      response_type: 'code',
+    };
+
+    try {
+      const accessToken = await client.getToken(tokenParams, { json: true });
+
+      console.log(accessToken);
+    } catch (error) {
+      console.log('Access Token Error', error.message);
+    }
+  }
+
   public async createFromMALName(seriesName: string) {
     const foundAnime = await Search.search(seriesName, 'anime', 1);
 
@@ -44,7 +109,13 @@ export class SeriesService {
   }
 
   public async createFromMALId(id: number) {
-    return this.createFromMAL(await Anime.byId(id));
+    const series = this.createFromMAL(await Anime.byId(id));
+
+    const defaultSeason = await this.settingsService.findByKey('currentSeason');
+    const defaultYear = await this.settingsService.findByKey('currentYear');
+
+    series.season = await this.seasonService.find(defaultSeason.value as SeasonName, Number(defaultYear.value));
+    return series;
   }
 
   public async update(series: Series) {
@@ -56,15 +127,17 @@ export class SeriesService {
   }
 
   public async deketeById(id: number) {
-    const series = await this.seriesRepository.findOne({ relations: ['season', 'subgroups'], where: { id: id } });
+    const series = await this.seriesRepository.findOne({ relations: ['season', 'subgroups', 'subgroups.rules'], where: { id: id } });
+
+    const subPromises = (series.subgroups || []).map(sub => this.subgroupService.delete(sub));
+
+    await Promise.all(subPromises);
+
     return this.delete(series);
   }
 
   public async findBySeason(name: string, year: number) {
-    return this.seriesRepository.find({
-      relations: ['season'],
-      where: [{ season: { year: year, name: name } }],
-    });
+    return (await this.seasonService.find(name as SeasonName, year))?.series ?? [];
   }
 
   public async findAll() {
@@ -108,6 +181,7 @@ export class SeriesService {
     series.studio = animeModel?.studios?.map(({ name }) => name).join(' ') ?? '';
     series.tags = [];
     series.watchStatus = WatchingStatus.NOT_WATCHING;
+    series.malId = animeModel.mal_id;
 
     return series;
   }

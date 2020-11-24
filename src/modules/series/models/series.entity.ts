@@ -1,6 +1,7 @@
 import { Season } from '../../season/models';
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany } from 'typeorm';
 import { SubGroup } from '../../../modules/sub-group/models';
+import { NyaaItem } from 'src/modules/nyaa/models/nyaaItem';
 
 export enum WatchingStatus {
   WATCHInG = 'watching',
@@ -32,7 +33,7 @@ export class Series {
   @Column()
   imageUrl: string;
 
-  @Column({ default: new Date() })
+  @Column({ default: new Date(), type: 'date' })
   airingData: Date;
 
   @Column({ default: 0 })
@@ -55,6 +56,8 @@ export class Series {
 
   continuing: boolean = false;
 
+  malId: number;
+
   @ManyToOne(
     type => Season,
     season => season.series,
@@ -67,4 +70,12 @@ export class Series {
     { cascade: true },
   )
   subgroups: SubGroup[];
+
+  @Column({
+    type: 'jsonb',
+    array: false,
+    default: () => "'[]'",
+    nullable: true,
+  })
+  showQueue: NyaaItem[];
 }

@@ -17,16 +17,19 @@ export class SubGroupService {
     return this.subgroupRepository.save(subGroup);
   }
 
+  public async createAll(subGroups: SubGroup[]) {
+    const prom = subGroups.map(group => this.subgroupRepository.save(group));
+    return Promise.all(prom);
+  }
+
   public async update(subGroup: SubGroup) {
     return this.subgroupRepository.save(subGroup);
   }
 
   public async delete(subGroup: SubGroup) {
-    const deletes = subGroup.rules.map(rule => {
-      return this.subgroupRuleService.delete(rule);
-    });
+    const rules = (subGroup.rules || []).map(rule => this.subgroupRuleService.delete(rule));
 
-    await Promise.all(deletes);
+    await Promise.all(rules);
 
     return this.subgroupRepository.remove(subGroup);
   }
@@ -42,14 +45,27 @@ export class SubGroupService {
     return this.subgroupRepository.find({ relations: ['rules'] });
   }
 
+  public async findNames() {
+    const results = await this.subgroupRepository
+      .createQueryBuilder()
+      .select('name')
+      .distinct(true)
+      .getRawMany();
+
+    return (results || []).map(({ name }) => name);
+  }
+
   public matchesSubgroup(text: string, subgroup: SubGroup) {
     if (subgroup.rules.length === 0) {
       return true;
     }
 
-    const passesGood = subgroup.rules.filter(rule => rule.isPositive).some(rule => this.subgroupRuleService.matchRule(text, rule));
-    const passesBad = subgroup.rules.filter(rule => !rule.isPositive).some(rule => this.subgroupRuleService.matchRule(text, rule));
+    const goodRules = subgroup.rules.filter(rule => rule.isPositive);
+    const badRules = subgroup.rules.filter(rule => !rule.isPositive);
 
-    return passesGood && !passesBad;
+    const passesGood = goodRules.every(rule => this.subgroupRuleService.matchRule(text, rule, subgroup));
+    const passesBad = badRules.every(rule => this.subgroupRuleService.matchRule(text, rule, subgroup));
+
+    return passesGood && (badRules.length > 0 ? !passesBad : true);
   }
 }

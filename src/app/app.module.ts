@@ -20,6 +20,9 @@ import { SubgroupRuleModule } from '../modules/sub-group-rule/sub-group-rule.mod
 import { AnimeFolderService } from '../modules/anime-folder/anime-folder.service';
 import { SocketModule } from '../modules/socket/socket.module';
 import { AppGateway } from './app.gateway';
+import { NyaaModule } from '../modules/nyaa/nyaa.module';
+import { AnimeFolderModule } from '../modules/anime-folder/anime-folder.module';
+import { SettingsModule } from '../modules/settings/settings.module';
 
 @Module({
   imports: [
@@ -31,12 +34,15 @@ import { AppGateway } from './app.gateway';
     SubgroupModule,
     SubgroupRuleModule,
     SocketModule,
+    NyaaModule,
+    AnimeFolderModule,
+    SettingsModule,
     TypeOrmModule.forRootAsync({
       useClass: TypeOrmOptions,
     }),
   ],
   controllers: [AppController],
-  providers: [NyaaService, AppService, AnimeFolderService, AppGateway],
+  providers: [AppService, AnimeFolderService, AppGateway],
 })
 export class AppModule {
   constructor(private readonly connection: Connection) {}

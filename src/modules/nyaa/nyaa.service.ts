@@ -1,19 +1,63 @@
 import { Injectable } from '@nestjs/common';
-import * as Parser from 'rss-parser';
-import * as WebTorrent from 'webtorrent';
+import { Cron } from '@nestjs/schedule';
+import { readdirSync } from 'fs-extra';
+import { clone } from 'ramda';
+
+import Parser from 'rss-parser';
+import WebTorrent from 'webtorrent';
+
 import { SubGroup } from '../sub-group/models';
 import { SubGroupService } from '../sub-group';
 import { NyaaRSSItem } from './models/nyaaRSSItem';
 import { NyaaItem } from './models/nyaaItem';
 import { SocketService } from '../socket/socket.service';
+import { SeriesService } from '../series/series.service';
+import { SeasonName } from '../season/models';
+import { Series } from '../series/models';
+import { ConfigService } from '../../config';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class NyaaService {
   private parser: Parser = new Parser();
   private client: WebTorrent.Instance;
 
-  constructor(private readonly subgroupService: SubGroupService, private readonly socketService: SocketService) {
+  constructor(
+    private readonly subgroupService: SubGroupService,
+    private readonly configService: ConfigService,
+    private readonly seriesService: SeriesService,
+    private readonly socketService: SocketService,
+    private readonly settingsService: SettingsService,
+  ) {
     this.client = new WebTorrent();
+  }
+
+  public async searchItems(feed: NyaaFeed, searchTerm: string, onlyTrusted = false): Promise<NyaaItem[]> {
+    try {
+      const trusted = onlyTrusted ? '&f=2' : '';
+      const query = `&q=${encodeURI(searchTerm)}`;
+
+      const { items = [] } = (await this.parser.parseURL(`${feed}${trusted}${query}`)) || {};
+      console.log(`${feed}${trusted}${query}`);
+      return (items as NyaaRSSItem[]).map(item => {
+        return {
+          downloadLink: item.link,
+          publishedDate: new Date(item.isoDate),
+          itemName: item.title,
+          episodeName: this.findCount(item.title),
+          subGroupName:
+            item.title
+              .match(/\[(.*?)\]/g)?.[0]
+              ?.replace('[', '')
+              .replace(']', '') ?? '',
+          resolution: this.findResolution(item.title),
+        };
+      });
+    } catch (ex) {
+      console.error(ex);
+    }
+
+    return [];
   }
 
   /**
@@ -29,7 +73,12 @@ export class NyaaService {
           downloadLink: item.link,
           publishedDate: new Date(item.isoDate),
           itemName: item.title,
-          subGroupName: item.title.match(/<b>(.*?)<\/b>/g)?.[0] ?? '',
+          episodeName: this.findCount(item.title),
+          subGroupName:
+            item.title
+              .match(/\[(.*?)\]/g)?.[0]
+              ?.replace('[', '')
+              .replace(']', '') ?? '',
           resolution: this.findResolution(item.title),
         };
       });
@@ -106,6 +155,55 @@ export class NyaaService {
     });
   }
 
+  // @Cron('30 * * * *')
+  public async syncShows() {
+    const defaultSeason = await this.settingsService.findByKey('currentSeason');
+    const defaultYear = await this.settingsService.findByKey('currentYear');
+
+    const series = await this.seriesService.findBySeason(defaultSeason.value as SeasonName, Number(defaultYear.value));
+    for await (const show of series) {
+      await this.syncShow(show);
+    }
+  }
+
+  public async syncById(id: number) {
+    await this.syncShow(await this.seriesService.findById(id));
+  }
+
+  private async syncShow(series: Series) {
+    const currentCount = series.folderPath ? this.findHighestCount(series.folderPath) : series.downloaded;
+    const existingQueue = clone(series.showQueue);
+
+    const items = await this.searchItems(NyaaFeed.ANIME, series.name, false);
+
+    const validItems = this.findValidItems(
+      (items || []).filter(item => item.episodeName > currentCount),
+      series.subgroups,
+    );
+
+    series.showQueue = validItems;
+    series.downloaded = currentCount;
+
+    await this.seriesService.update(series);
+
+    const queueUpdated = existingQueue.every(item => validItems.includes(item));
+
+    if (!queueUpdated || existingQueue.length !== validItems.length) {
+      this.socketService.socket.emit('queue-update', { show: series });
+    }
+    await this.waitFor(100);
+  }
+
+  private findHighestCount(folderName) {
+    const files = readdirSync(`${this.configService.baseFolder}/${folderName}`, { withFileTypes: true }).filter(item => item.isFile());
+
+    return files.reduce((acc, file) => {
+      const epNumber = this.findCount(file.name);
+
+      return acc < epNumber ? epNumber : acc;
+    }, 0);
+  }
+
   private findResolution(title: string) {
     if (title.includes('720') || title.includes('720p')) {
       return '720';
@@ -115,11 +213,31 @@ export class NyaaService {
       return '1080';
     }
 
-    if (title.includes('480') || title.includes('480')) {
+    if (title.includes('480') || title.includes('480p')) {
       return '480';
     }
 
     return 'ANY';
+  }
+
+  private findCount(title: string) {
+    const parts = title.split(' - ');
+
+    if (parts.length === 0) {
+      return -1;
+    }
+
+    const matches = (parts[parts.length - 1].match(/\d+/) || [])[0] || '-1';
+
+    return Number(matches);
+  }
+
+  public async waitFor(time: number) {
+    return new Promise(resolve => {
+      setTimeout(() => {
+        resolve();
+      }, time);
+    });
   }
 }
 

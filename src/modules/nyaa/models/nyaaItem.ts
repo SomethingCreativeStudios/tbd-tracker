@@ -4,4 +4,5 @@ export interface NyaaItem {
   downloadLink: string;
   publishedDate: Date;
   resolution: string;
+  episodeName: number;
 }

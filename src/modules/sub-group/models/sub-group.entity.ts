@@ -1,4 +1,5 @@
 import { PrimaryGeneratedColumn, Entity, Column, OneToMany, JoinColumn, ManyToMany, ManyToOne } from 'typeorm';
+import { Exclude } from 'class-transformer';
 import { SubGroupRule } from '../../sub-group-rule/models/sub-group-rule.entity';
 import { Series } from '../../../modules/series/models';
 

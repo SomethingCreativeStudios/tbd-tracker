@@ -11,17 +11,17 @@ import {
 import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { SocketService } from '../modules/socket/socket.service';
-import { NyaaService } from '../modules/nyaa/nyaa.service';
 
 @WebSocketGateway(81)
 export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
-  constructor(private socketService: SocketService, private nyaaService: NyaaService) {}
+  constructor(private socketService: SocketService) {}
 
   @WebSocketServer() public server: Server;
 
   private logger: Logger = new Logger('AppGateway');
 
   afterInit(server: Server) {
+    console.log('TEST');
     this.socketService.socket = server;
   }
 

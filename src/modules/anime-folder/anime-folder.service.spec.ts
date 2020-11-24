@@ -45,7 +45,11 @@ describe('Anime Folder Service', () => {
     service = testingModule?.get(AnimeFolderService);
     done();
   });
-
+  describe('Folders', () => {
+    it('Best Match', () => {
+      console.log(service.getFolders());
+    });
+  });
   describe('Anime Feeds', () => {
     it('Best Match', () => {
       expect(service.matchFolder('[WolfSubs] Spice and Wolf - 10.mkv', folderNames, folderRules)).toEqual('Spice and Wolf');

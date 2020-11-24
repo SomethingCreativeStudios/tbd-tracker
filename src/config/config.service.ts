@@ -32,6 +32,7 @@ export class ConfigService {
       USER_PASSWORD: Joi.string(),
       FIRST_RUN: Joi.boolean().default(false),
       RELIC_KEY: Joi.string(),
+      BASE_FOLDER: Joi.string().required(),
     });
 
     const { error, value: validatedEnvConfig } = Joi.validate(envConfig, envVarsSchema);
@@ -63,6 +64,10 @@ export class ConfigService {
 
   get firstRun(): boolean {
     return Boolean(this.envConfig.FIRST_RUN);
+  }
+
+  get baseFolder(): string {
+    return String(this.envConfig.BASE_FOLDER);
   }
 
   get defaultPasswords(): DefaultPasswords {

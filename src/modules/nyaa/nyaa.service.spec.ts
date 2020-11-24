@@ -41,6 +41,7 @@ function createNyaaItem(subgroup, link, resolution = '720'): NyaaItem {
     publishedDate: new Date(),
     subGroupName: subgroup,
     itemName: link,
+    episodeName: 0,
   };
 }
 
@@ -108,7 +109,7 @@ describe('Formatter service', () => {
   describe('Highway Service', () => {
     const rootPath = 'C:\\Users\\eric-\\Documents\\download_test';
     it('Test Download', async done => {
-      const fileName = "Maou Gakuin no Futekigousha [WN]";
+      const fileName = 'Maou Gakuin no Futekigousha [WN]';
 
       if (existsSync(`${rootPath}\\${fileName}`)) {
         removeSync(`${rootPath}\\${fileName}`);

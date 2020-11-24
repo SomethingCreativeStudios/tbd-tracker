@@ -80,7 +80,7 @@ describe('Subgroup Controller', () => {
   it(`add rule`, async () => {
     const found = await subgroupService.create(createSubGroup('TEST', []));
 
-    const test = await subgroupController.addRule(found.id, createRule('Spice', RuleType.ENDS_WITH, true));
+    const test = await subgroupController.addRule(found.id);
 
     const foundAfter = (await subgroupService.find({ id: found.id }))[0];
 

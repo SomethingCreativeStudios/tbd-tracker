@@ -1,6 +1,6 @@
 {
   "type": "postgres",
-  "host": "nasty",
+  "host": "174.97.105.179",
   "port": 5432,
   "username": "tracker",
   "password": "~lBik0WD!HF6",

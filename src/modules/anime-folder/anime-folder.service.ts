@@ -2,9 +2,19 @@ import { Injectable } from '@nestjs/common';
 import * as similarity from 'string-similarity';
 import { RuleType } from '../sub-group-rule/models';
 import { AnimeFolderRule } from './models';
+import { readdirSync } from 'fs-extra';
+import { ConfigService } from '../../config';
 
 @Injectable()
 export class AnimeFolderService {
+  constructor(private configService: ConfigService) {}
+
+  public getFolders() {
+    return readdirSync(this.configService.baseFolder, { withFileTypes: true })
+      .filter(dirent => dirent.isDirectory())
+      .map(dirent => dirent.name);
+  }
+
   public matchFolder(showName: string, folderNames: string[], folderRules: AnimeFolderRule[]) {
     const foundRule = folderRules.find(rule => this.matchFolderRule(showName.toLowerCase(), rule));
 

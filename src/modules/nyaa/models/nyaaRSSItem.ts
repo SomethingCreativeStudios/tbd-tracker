@@ -4,4 +4,5 @@ export interface NyaaRSSItem {
   link: string;
   isoDate: string;
   title: string;
+  episodeName: number;
 }
