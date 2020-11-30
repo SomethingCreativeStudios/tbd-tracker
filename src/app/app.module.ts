@@ -1,11 +1,6 @@
 import { SeriesModule } from './../modules/series/series.module';
-import { SeriesService } from './../modules/series/series.service';
-import { SeriesController } from './../modules/series/series.controller';
 import { SeasonModule } from './../modules/season/season.module';
-import { SeasonService } from './../modules/season/season.service';
-import { SeasonController } from './../modules/season/season.controller';
-import { NyaaService } from '../modules/nyaa/nyaa.service';
-import { Module } from '@nestjs/common';
+import { Module, CacheModule, CacheInterceptor } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Connection } from 'typeorm';
 
@@ -23,9 +18,12 @@ import { AppGateway } from './app.gateway';
 import { NyaaModule } from '../modules/nyaa/nyaa.module';
 import { AnimeFolderModule } from '../modules/anime-folder/anime-folder.module';
 import { SettingsModule } from '../modules/settings/settings.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 
 @Module({
   imports: [
+    CacheModule.register(),
     SeriesModule,
     SeasonModule,
     UserModule,
@@ -37,12 +35,21 @@ import { SettingsModule } from '../modules/settings/settings.module';
     NyaaModule,
     AnimeFolderModule,
     SettingsModule,
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
       useClass: TypeOrmOptions,
     }),
   ],
   controllers: [AppController],
-  providers: [AppService, AnimeFolderService, AppGateway],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: CacheInterceptor,
+    },
+    AppService,
+    AnimeFolderService,
+    AppGateway,
+  ],
 })
 export class AppModule {
   constructor(private readonly connection: Connection) {}

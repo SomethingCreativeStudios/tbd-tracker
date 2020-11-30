@@ -59,12 +59,12 @@ export class SeasonService {
     return this.seasonRepository.remove(season);
   }
 
-  public async generateFromSeason(seasonName: SeasonName, year: number) {
+  public async generateFromSeason(seasonName: SeasonName, year: number, options: any) {
     const newSeason = await this.find(seasonName, year);
     const season = await SeasonSearch.anime(year, seasonName);
     const hasEps = (eps = 0) => eps === 0 || eps > 4;
     newSeason.series = season.anime
-      .map(anime => this.seriesService.createFromMALSeason(anime))
+      .map(anime => this.seriesService.createFromMALSeason(anime, options))
       .filter(show => !show.continuing && hasEps(show.numberOfEpisodes) && differenceInCalendarYears(new Date(), show.airingData) < 1);
 
     return this.update(newSeason);

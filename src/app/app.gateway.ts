@@ -1,20 +1,12 @@
-import {
-  WebSocketGateway,
-  OnGatewayInit,
-  OnGatewayConnection,
-  OnGatewayDisconnect,
-  WebSocketServer,
-  SubscribeMessage,
-  MessageBody,
-  ConnectedSocket,
-} from '@nestjs/websockets';
+import { WebSocketGateway, OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect, WebSocketServer } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { SocketService } from '../modules/socket/socket.service';
+import { NyaaService } from '../modules/nyaa/nyaa.service';
 
 @WebSocketGateway(81)
 export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
-  constructor(private socketService: SocketService) {}
+  constructor(private socketService: SocketService, private nyaaService: NyaaService) {}
 
   @WebSocketServer() public server: Server;
 
@@ -31,5 +23,9 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
 
   handleConnection(client: Socket, ...args: any[]) {
     this.logger.log(`Client connected: ${client.id}`);
+
+    setTimeout(() => {
+      this.nyaaService.onConnect(client);
+    }, 1000);
   }
 }

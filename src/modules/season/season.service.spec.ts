@@ -24,7 +24,7 @@ describe('Season Service', () => {
 
   describe('Season', () => {
     it('Auto Generate', async done => {
-      const newSeason = await service.generateFromSeason(SeasonName.FALL, 2020);
+      const newSeason = await service.generateFromSeason(SeasonName.FALL, 2020, {});
       expect(newSeason.series.length).toBeGreaterThan(0);
       done();
     });

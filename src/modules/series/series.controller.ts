@@ -1,6 +1,6 @@
-import { Body, Controller, Delete, Get, Post, Put, Param, Query, ParseArrayPipe } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post, Put, Param, Query, ParseArrayPipe, CacheInterceptor, UseInterceptors } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { Series } from './models';
+import { Series, WatchingStatus } from './models';
 import { SeriesService } from './series.service';
 import { SubGroupService } from '../sub-group';
 import { SubGroup } from '../sub-group/models';
@@ -19,6 +19,11 @@ export class SeriesController {
   @Put()
   async update(@Body() series: Series): Promise<Series> {
     return this.seriesService.update(series);
+  }
+
+  @Put('/watchstatus/:id')
+  async updateWatchStatus(@Param('id') seriesId: string): Promise<WatchingStatus> {
+    return this.seriesService.updateWatchStatus(+seriesId);
   }
 
   @Delete()
@@ -42,8 +47,8 @@ export class SeriesController {
   }
 
   @Post('/mal/:id')
-  async createByMal(@Param('id') id: number): Promise<Series> {
-    const series = await this.seriesService.createFromMALId(id);
+  async createByMal(@Param('id') id: number, @Body() options: any): Promise<Series> {
+    const series = await this.seriesService.createFromMALId(id, options);
 
     return this.seriesService.create(series);
   }

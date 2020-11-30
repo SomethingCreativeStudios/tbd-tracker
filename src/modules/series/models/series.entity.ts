@@ -4,7 +4,7 @@ import { SubGroup } from '../../../modules/sub-group/models';
 import { NyaaItem } from 'src/modules/nyaa/models/nyaaItem';
 
 export enum WatchingStatus {
-  WATCHInG = 'watching',
+  WATCHING = 'watching',
   WATCHED = 'watched',
   THREE_RULE = 'three_rule',
   NOT_WATCHING = 'not_watching',

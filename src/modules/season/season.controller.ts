@@ -26,8 +26,12 @@ export class SeasonController {
   }
 
   @Post('mal/:year/:seasonName')
-  async createFromSeason(@Param('year') year: number, @Param('seasonName') seasonName: SeasonName): Promise<Season> {
-    return this.seasonService.generateFromSeason(seasonName, year);
+  async createFromSeason(
+    @Param('year') year: number,
+    @Param('seasonName') seasonName: SeasonName,
+    @Body() options: { autoMatchFolders: boolean },
+  ): Promise<Season> {
+    return this.seasonService.generateFromSeason(seasonName, year, options);
   }
 
   @Post('/series/:seasonId')

@@ -1,5 +1,7 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { findBestMatch } from 'string-similarity';
+
 import { Series, WatchingStatus } from './models';
 import { SeriesRepository } from './series.repository';
 import { AnimeById } from 'jikants/dist/src/interfaces/anime/ById';
@@ -13,6 +15,9 @@ import { SeasonName } from '../season/models';
 import { SettingsService } from '../settings/settings.service';
 import { SubGroup } from '../sub-group/models';
 import { SubGroupRule, RuleType } from '../sub-group-rule/models';
+import { AnimeFolderService } from '../anime-folder/anime-folder.service';
+import { existsSync, mkdirSync } from 'fs-extra';
+import sanitize from 'sanitize-filename';
 
 const config = {
   client: {
@@ -38,6 +43,9 @@ export class SeriesService {
 
     @Inject(SettingsService)
     private readonly settingsService: SettingsService,
+
+    @Inject(forwardRef(() => AnimeFolderService))
+    private readonly animeFolderService: AnimeFolderService,
   ) {}
 
   public async create(series: Series) {
@@ -58,7 +66,6 @@ export class SeriesService {
 
       series.subgroups = [subGroup];
     }
-
     return this.seriesRepository.save(series);
   }
 
@@ -108,8 +115,8 @@ export class SeriesService {
     return this.createFromMAL(await Anime.byId(foundAnime.results[0].mal_id));
   }
 
-  public async createFromMALId(id: number) {
-    const series = this.createFromMAL(await Anime.byId(id));
+  public async createFromMALId(id: number, options?: any) {
+    const series = this.createFromMAL(await Anime.byId(id), options);
 
     const defaultSeason = await this.settingsService.findByKey('currentSeason');
     const defaultYear = await this.settingsService.findByKey('currentYear');
@@ -119,7 +126,40 @@ export class SeriesService {
   }
 
   public async update(series: Series) {
+    if (series.downloaded > 3 && series.watchStatus === WatchingStatus.THREE_RULE) {
+      series.watchStatus = WatchingStatus.WATCHING;
+    }
+
+    if (series.downloaded === series.numberOfEpisodes && series.numberOfEpisodes > 1 && series.watchStatus === WatchingStatus.WATCHING) {
+      series.watchStatus = WatchingStatus.WATCHED;
+    }
+
     return this.seriesRepository.save(series);
+  }
+
+  public async updateWatchStatus(id: number) {
+    const series = await this.findById(id);
+    const { watchStatus } = series;
+
+    if (watchStatus === WatchingStatus.NOT_WATCHING) {
+      series.watchStatus = WatchingStatus.THREE_RULE;
+    }
+
+    if (watchStatus === WatchingStatus.THREE_RULE) {
+      series.watchStatus = WatchingStatus.WATCHING;
+    }
+
+    if (watchStatus === WatchingStatus.WATCHING) {
+      series.watchStatus = WatchingStatus.WATCHED;
+    }
+
+    if (watchStatus === WatchingStatus.WATCHED) {
+      series.watchStatus = WatchingStatus.NOT_WATCHING;
+    }
+
+    await this.seriesRepository.save(series);
+
+    return series.watchStatus;
   }
 
   public async delete(series: Series) {
@@ -148,7 +188,7 @@ export class SeriesService {
     return this.seriesRepository.findOne({ relations: ['season', 'subgroups', 'subgroups.rules'], where: { id: seriesId } });
   }
 
-  public createFromMALSeason(animeModel: AnimeSeason) {
+  public createFromMALSeason(animeModel: AnimeSeason, options: { autoMatchFolders: boolean }) {
     const series = new Series();
 
     series.airingData = new Date(animeModel.airing_start) || new Date();
@@ -162,12 +202,16 @@ export class SeriesService {
     series.studio = animeModel.licensors?.join(' ') ?? '';
     series.continuing = animeModel.continuing;
     series.tags = [];
-    series.watchStatus = WatchingStatus.NOT_WATCHING;
+    series.watchStatus = WatchingStatus.THREE_RULE;
+
+    if (options.autoMatchFolders) {
+      series.folderPath = this.animeFolderService.autoMakeFolder(series.name);
+    }
 
     return series;
   }
 
-  public createFromMAL(animeModel: AnimeById) {
+  public createFromMAL(animeModel: AnimeById, options?: { autoMatchFolders: boolean }) {
     const series = new Series();
 
     series.airingData = new Date(animeModel?.aired?.from ?? new Date()) || new Date();
@@ -180,8 +224,12 @@ export class SeriesService {
     series.score = animeModel.score;
     series.studio = animeModel?.studios?.map(({ name }) => name).join(' ') ?? '';
     series.tags = [];
-    series.watchStatus = WatchingStatus.NOT_WATCHING;
+    series.watchStatus = WatchingStatus.THREE_RULE;
     series.malId = animeModel.mal_id;
+
+    if (options?.autoMatchFolders) {
+      series.folderPath = this.animeFolderService.autoMakeFolder(series.name);
+    }
 
     return series;
   }

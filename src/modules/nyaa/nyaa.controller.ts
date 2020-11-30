@@ -1,17 +1,35 @@
-import { Controller, Get, Query, Post, Put, Param } from '@nestjs/common';
+import { Controller, Get, Query, Post, Put, Param, Body } from '@nestjs/common';
 import { ApiTags, ApiQuery, ApiParam } from '@nestjs/swagger';
 import { NyaaService, NyaaFeed } from './nyaa.service';
 import { NyaaItem } from './models/nyaaItem';
 import { SubGroupService } from '../sub-group';
+import { SeriesService } from '../series/series.service';
 
 @ApiTags('Nyaa')
 @Controller('api/v1/nyaa')
 export class NyaaController {
-  constructor(private readonly nyaaService: NyaaService, private readonly subgroupService: SubGroupService) {}
+  constructor(
+    private readonly nyaaService: NyaaService,
+    private readonly seriesService: SeriesService,
+    private readonly subgroupService: SubGroupService,
+  ) {}
 
   @Get('/feed')
   public async getNyaaFeed(): Promise<NyaaItem[]> {
     return this.nyaaService.fetchItems(NyaaFeed.ANIME);
+  }
+
+  @Post('/download')
+  public async download(@Body() { seriesId, url, name }: { url: string; seriesId: number; name: string }) {
+    const series = await this.seriesService.findById(seriesId);
+
+    await this.nyaaService.downloadShow(url, (process.env.BASE_FOLDER.replace('\\\\', '\\') + '\\' + series.folderPath) as string, name);
+  }
+
+  @Post('/download/test')
+  public async downloadTest() {
+
+    await this.nyaaService.testDownload();
   }
 
   @Get('/feed/filtered')

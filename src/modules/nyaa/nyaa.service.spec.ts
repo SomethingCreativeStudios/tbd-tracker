@@ -117,7 +117,7 @@ describe('Formatter service', () => {
 
       expect(existsSync(`${rootPath}\\${fileName}`)).toBeFalsy();
 
-      const result = await service.downloadShow('https://nyaa.si/download/1284616.torrent', rootPath);
+      const result = await service.downloadShow('https://nyaa.si/download/1284616.torrent', rootPath, 'test');
 
       expect(result.error).toEqual(undefined);
       expect(existsSync(`${rootPath}\\${fileName}`)).toBeTruthy();
