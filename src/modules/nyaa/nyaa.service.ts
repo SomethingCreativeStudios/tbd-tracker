@@ -2,8 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { readdirSync } from 'fs-extra';
 import { clone } from 'ramda';
-import { Server, Socket } from 'socket.io';
+import { Socket } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
+import { resolve } from 'path';
 
 import Parser from 'rss-parser';
 import WebTorrent from 'webtorrent';
@@ -129,10 +130,10 @@ export class NyaaService {
     for (let i = 0; i < paths.length; i++) {
       const { name, url } = paths[i];
       if (i <= 1) {
-        this.testAddTorrent(url, process.env.BASE_FOLDER + '/' + name, name);
+        this.testAddTorrent(url, resolve(process.env.BASE_FOLDER, name), name);
       } else {
         console.log('Queued', name);
-        this.queuedTorrents.push({ path: process.env.BASE_FOLDER + '/' + name, fileName: name, url });
+        this.queuedTorrents.push({ path: resolve(process.env.BASE_FOLDER, name), fileName: name, url });
         this.socketService.socket.emit('torrent-queued', { url, fileName: name });
       }
     }

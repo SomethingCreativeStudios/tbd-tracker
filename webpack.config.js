@@ -29,7 +29,7 @@ module.exports = options => {
   return {
     entry: {
       ...migrations,
-      server: ['webpack/hot/poll?100', './src/main.ts'],
+      server: ['webpack/hot/poll?100', path.resolve(__dirname, './src/main.ts')],
     },
     watch: true,
     target: 'node',

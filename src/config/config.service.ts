@@ -10,8 +10,9 @@ export class ConfigService {
   private readonly envConfig: { [key: string]: string };
 
   constructor() {
-    const config = dotenv.parse(fs.readFileSync(`.env`));
-    this.envConfig = this.validateInput(config);
+    dotenv.config();
+    //const config = dotenv.parse(fs.readFileSync(`.env`));
+    this.envConfig = this.validateInput(process.env);
   }
 
   /*
@@ -33,7 +34,7 @@ export class ConfigService {
       FIRST_RUN: Joi.boolean().default(false),
       RELIC_KEY: Joi.string(),
       BASE_FOLDER: Joi.string().required(),
-    });
+    }).unknown(true);
 
     const { error, value: validatedEnvConfig } = Joi.validate(envConfig, envVarsSchema);
     if (error) {

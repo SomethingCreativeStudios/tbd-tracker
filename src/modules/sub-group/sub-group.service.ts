@@ -46,13 +46,17 @@ export class SubGroupService {
   }
 
   public async findNames() {
-    const results = await this.subgroupRepository
-      .createQueryBuilder()
-      .select('name')
-      .distinct(true)
-      .getRawMany();
+    try {
+      const results = await this.subgroupRepository
+        .createQueryBuilder()
+        .select('name')
+        .distinct(true)
+        .getRawMany();
 
-    return (results || []).map(({ name }) => name);
+      return (results || []).map(({ name }) => name);
+    } catch {
+      return [];
+    }
   }
 
   public matchesSubgroup(text: string, subgroup: SubGroup) {

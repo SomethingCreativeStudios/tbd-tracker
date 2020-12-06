@@ -4,6 +4,7 @@ import { NyaaService, NyaaFeed } from './nyaa.service';
 import { NyaaItem } from './models/nyaaItem';
 import { SubGroupService } from '../sub-group';
 import { SeriesService } from '../series/series.service';
+import { resolve } from 'path';
 
 @ApiTags('Nyaa')
 @Controller('api/v1/nyaa')
@@ -23,12 +24,11 @@ export class NyaaController {
   public async download(@Body() { seriesId, url, name }: { url: string; seriesId: number; name: string }) {
     const series = await this.seriesService.findById(seriesId);
 
-    await this.nyaaService.downloadShow(url, (process.env.BASE_FOLDER.replace('\\\\', '\\') + '\\' + series.folderPath) as string, name);
+    await this.nyaaService.downloadShow(url, resolve(process.env.BASE_FOLDER, series.folderPath), name);
   }
 
   @Post('/download/test')
   public async downloadTest() {
-
     await this.nyaaService.testDownload();
   }
 
