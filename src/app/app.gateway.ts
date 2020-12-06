@@ -4,7 +4,7 @@ import { Server, Socket } from 'socket.io';
 import { SocketService } from '../modules/socket/socket.service';
 import { NyaaService } from '../modules/nyaa/nyaa.service';
 
-@WebSocketGateway(81)
+@WebSocketGateway(8180)
 export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   constructor(private socketService: SocketService, private nyaaService: NyaaService) {}
 
@@ -13,7 +13,6 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
   private logger: Logger = new Logger('AppGateway');
 
   afterInit(server: Server) {
-    console.log('TEST');
     this.socketService.socket = server;
   }
 

@@ -11,6 +11,7 @@
     "watch": "webpack --config webpack.config.js --watch",
     "build": "webpack --config webpack.config.js",
     "build:prod": "webpack --config webpack.prod.js",
+    "build:docker": "docker build -t ericlo417/tba-tracker-backend . && docker push ericlo417/tba-tracker-backend",
     "prestart:prod": "rimraf dist && npm run build",
     "start:prod": "node dist/server.js",
     "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js --config ormconfig.json",
