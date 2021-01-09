@@ -30,6 +30,10 @@ export class SubGroupRuleService {
     });
   }
 
+  public async findOne(subGroupRule: DeepPartial<SubGroupRule>) {
+    return (await this.find(subGroupRule))[0];
+  }
+
   public async findAll() {
     return this.subgroupRuleRepository.find();
   }

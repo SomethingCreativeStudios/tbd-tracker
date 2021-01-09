@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Settings } from './models';
-import { SettingsRepository } from './series.repository';
+import { SettingsRepository } from './settings.repository';
 import { InjectRepository } from '@nestjs/typeorm';
 import { SettingType } from './models/setting.entity';
 

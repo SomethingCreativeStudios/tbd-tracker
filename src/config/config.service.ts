@@ -59,8 +59,8 @@ export class ConfigService {
     return String(this.envConfig.DB_PASSWORD);
   }
 
-  get databasePort(): string {
-    return String(this.envConfig.DB_PORT);
+  get databasePort(): number {
+    return Number(this.envConfig.DB_PORT);
   }
 
   get firstRun(): boolean {

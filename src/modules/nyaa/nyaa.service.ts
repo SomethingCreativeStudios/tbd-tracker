@@ -4,7 +4,7 @@ import { readdirSync } from 'fs-extra';
 import { clone } from 'ramda';
 import { Socket } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
-import { resolve } from 'path';
+import { resolve, join } from 'path';
 
 import Parser from 'rss-parser';
 import WebTorrent from 'webtorrent';
@@ -19,6 +19,7 @@ import { SeasonName } from '../season/models';
 import { Series } from '../series/models';
 import { ConfigService } from '../../config';
 import { SettingsService } from '../settings/settings.service';
+import { AnimeFolderService } from '../anime-folder/anime-folder.service';
 
 @Injectable()
 export class NyaaService {
@@ -34,6 +35,7 @@ export class NyaaService {
     private readonly seriesService: SeriesService,
     private readonly socketService: SocketService,
     private readonly settingsService: SettingsService,
+    private readonly folderService: AnimeFolderService,
   ) {
     this.client = new WebTorrent();
   }
@@ -60,7 +62,7 @@ export class NyaaService {
         return {
           downloadLink: item.link,
           publishedDate: new Date(item.isoDate),
-          itemName: item.title,
+          itemName: item.title.replace(':', ''),
           episodeName: this.findCount(item.title),
           subGroupName:
             item.title
@@ -134,7 +136,7 @@ export class NyaaService {
       } else {
         console.log('Queued', name);
         this.queuedTorrents.push({ path: resolve(process.env.BASE_FOLDER, name), fileName: name, url });
-        this.socketService.socket.emit('torrent-queued', { url, fileName: name });
+        this.socketService.nyaaSocket.emit('torrent-queued', { url, fileName: name });
       }
     }
   }
@@ -157,7 +159,7 @@ export class NyaaService {
         console.log('Queued', fileName);
         this.queuedTorrents.push({ path: downloadPath, url: torrentName, fileName });
 
-        this.socketService.socket.emit('torrent-queued', { url: torrentName, fileName: fileName });
+        this.socketService.nyaaSocket.emit('torrent-queued', { url: torrentName, fileName });
         return;
       }
 
@@ -168,11 +170,11 @@ export class NyaaService {
   }
 
   @Cron(CronExpression.EVERY_HOUR)
-  public async syncShows() {
-    const defaultSeason = await this.settingsService.findByKey('currentSeason');
-    const defaultYear = await this.settingsService.findByKey('currentYear');
+  public async syncShows(season?: string, year?: string) {
+    const defaultSeason = season || (await this.settingsService.findByKey('currentSeason')).value;
+    const defaultYear = year || (await this.settingsService.findByKey('currentYear')).value;
 
-    const series = await this.seriesService.findBySeason(defaultSeason.value as SeasonName, Number(defaultYear.value));
+    const series = await this.seriesService.findBySeason(defaultSeason as SeasonName, Number(defaultYear));
     for await (const show of series) {
       await this.syncShow(show);
     }
@@ -183,9 +185,10 @@ export class NyaaService {
   }
 
   private async syncShow(series: Series) {
-    this.socketService.socket.emit('queue-syncing', { show: series });
-    const downloadedEps = series.folderPath ? this.findDownloadedEps(series.folderPath) : [];
-    const currentCount = series.folderPath ? this.findHighestCount(series.folderPath) : series.downloaded;
+    this.socketService.nyaaSocket.emit('series-syncing', { id: series.id, type: 'STARTING' });
+    await this.folderService.ensureShowFolder(series.folderPath);
+    const downloadedEps = series.folderPath ? await this.findDownloadedEps(series.folderPath) : [];
+    const currentCount = series.folderPath ? await this.findHighestCount(series.folderPath) : series.downloaded;
     const existingQueue = clone(series.showQueue);
 
     const items = await this.searchItems(NyaaFeed.ANIME, series.name, false);
@@ -201,13 +204,15 @@ export class NyaaService {
     await this.seriesService.update(series);
 
     const queueUpdated = existingQueue.every(item => validItems.includes(item));
+    const didUpdateOccur = !queueUpdated || existingQueue.length !== validItems.length;
 
-    if (!queueUpdated || existingQueue.length !== validItems.length) {
-      this.socketService.socket.emit('queue-update', { show: series });
-    } else {
-      this.socketService.socket.emit('queue-noupdate', { show: series });
-    }
-    await this.waitFor(100);
+    this.socketService.nyaaSocket.emit('series-syncing', {
+      id: series.id,
+      type: didUpdateOccur ? 'UPDATE_FOUND' : 'NO_UPDATE',
+      queue: validItems,
+    });
+
+    await this.waitFor(500);
   }
 
   private addTorrent(url: string, downloadPath: string, queued: boolean = false) {
@@ -215,14 +220,14 @@ export class NyaaService {
     this.downloadingTorrents.push({ path: downloadPath, url, hash: '', name: downloadPath });
     this.client.add(url, { path: downloadPath, maxWebConns: 100 }, torrent => {
       console.log('Client is downloading:', torrent.infoHash, torrent.name);
-      this.downloadingTorrents.map(tor => (tor.url === url ? { ...tor, name: torrent.name, hash: torrent.infoHash } : tor));
+      this.downloadingTorrents.forEach(tor => (tor.url === url ? { ...tor, name: torrent.name, hash: torrent.infoHash } : tor));
 
-      this.socketService?.socket?.emit('start-downloading', { hash: torrent.infoHash, value: { name: torrent.name, url, queued } });
-      this.socketService?.socket?.emit('metadata', { hash: torrent.infoHash, value: { name: torrent.name } });
+      this.socketService?.nyaaSocket?.emit('start-downloading', { hash: torrent.infoHash, value: { name: torrent.name, url, queued } });
+      this.socketService?.nyaaSocket?.emit('metadata', { hash: torrent.infoHash, value: { name: torrent.name } });
 
       torrent.on('done', () => {
         console.log('torrent finished downloading');
-        this.socketService?.socket?.emit('downloaded', { hash: torrent.infoHash, value: true });
+        this.socketService?.nyaaSocket?.emit('downloaded', { hash: torrent.infoHash, value: true });
         setTimeout(() => torrent.destroy(), 100);
         this.downloadingTorrents.pop();
 
@@ -238,11 +243,11 @@ export class NyaaService {
 
       torrent.on('ready', function() {
         console.log('torrent metadata', torrent.name);
-        this.socketService?.socket?.emit('metadata', { hash: torrent.infoHash, value: { name: torrent.name } });
+        this.socketService?.nyaaSocket?.emit('metadata', { hash: torrent.infoHash, value: { name: torrent.name } });
       });
 
       const interval = setInterval(() => {
-        this.socketService?.socket?.emit('downloading', {
+        this.socketService?.nyaaSocket?.emit('downloading', {
           hash: torrent.infoHash,
           value: {
             name: torrent.name,
@@ -258,7 +263,7 @@ export class NyaaService {
 
       torrent.on('error', message => {
         console.log('torrent error', message.toString());
-        this.socketService?.socket?.emit('error', { hash: torrent.infoHash, value: message });
+        this.socketService?.nyaaSocket?.emit('error', { hash: torrent.infoHash, value: message });
         this.downloadingTorrents.pop();
         clearInterval(interval);
       });
@@ -274,8 +279,8 @@ export class NyaaService {
 
     console.log('Client is downloading:', hash, torrentName);
 
-    this.socketService?.socket?.emit('start-downloading', { hash, value: { name: torrentName, url, queued } });
-    this.socketService?.socket?.emit('metadata', { hash, value: { name: torrentName } });
+    this.socketService?.nyaaSocket?.emit('start-downloading', { hash, value: { name: torrentName, url, queued } });
+    this.socketService?.nyaaSocket?.emit('metadata', { hash, value: { name: torrentName } });
 
     let totalDownloaded = 0;
 
@@ -283,12 +288,12 @@ export class NyaaService {
       const justDownloaded = randomNumer(10, 22);
       totalDownloaded += justDownloaded;
 
-      this.socketService?.socket?.emit('downloading', {
+      this.socketService?.nyaaSocket?.emit('downloading', {
         hash,
         value: {
+          justDownloaded,
+          totalDownloaded,
           name: torrentName,
-          justDownloaded: justDownloaded,
-          totalDownloaded: totalDownloaded,
           speed: 1000,
           progress: totalDownloaded / 100,
         },
@@ -296,7 +301,7 @@ export class NyaaService {
 
       if (totalDownloaded >= 100) {
         clearInterval(timeout);
-        this.socketService?.socket?.emit('downloaded', { hash, name: torrentName, value: true });
+        this.socketService?.nyaaSocket?.emit('downloaded', { hash, name: torrentName, value: true });
         console.log('Done Downloaded', hash);
 
         this.downloadingTorrents.pop();
@@ -311,8 +316,8 @@ export class NyaaService {
     }, 1000);
   }
 
-  private findHighestCount(folderName) {
-    const files = readdirSync(`${this.configService.baseFolder}/${folderName}`, { withFileTypes: true }).filter(item => item.isFile());
+  private async findHighestCount(folderName) {
+    const files = readdirSync(join(await this.folderService.getCurrentFolder(), folderName), { withFileTypes: true }).filter(item => item.isFile());
 
     return files.reduce((acc, file) => {
       const epNumber = this.findCount(file.name);
@@ -321,8 +326,8 @@ export class NyaaService {
     }, 0);
   }
 
-  private findDownloadedEps(folderName) {
-    const files = readdirSync(`${this.configService.baseFolder}/${folderName}`, { withFileTypes: true }).filter(item => item.isFile());
+  private async findDownloadedEps(folderName) {
+    const files = readdirSync(join(await this.folderService.getCurrentFolder(), folderName), { withFileTypes: true }).filter(item => item.isFile());
 
     return files.map(file => this.findCount(file.name));
   }

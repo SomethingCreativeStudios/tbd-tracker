@@ -1,10 +1,10 @@
 {
   "type": "postgres",
-  "host": "174.97.105.179",
-  "port": 5432,
+  "host": "localhost",
+  "port": 5434,
   "username": "tracker",
   "password": "~lBik0WD!HF6",
-  "database": "tbd_test",
+  "database": "tbd",
   "synchronize": false,
   "logging": false,
   "migrationsRun": true,

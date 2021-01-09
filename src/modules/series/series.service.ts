@@ -1,11 +1,12 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { findBestMatch } from 'string-similarity';
+import { differenceInCalendarYears } from 'date-fns';
+import sanitize from 'sanitize-filename';
 
 import { Series, WatchingStatus } from './models';
 import { SeriesRepository } from './series.repository';
 import { AnimeById } from 'jikants/dist/src/interfaces/anime/ById';
-import { Search, Anime } from '../../jikan';
+import { Search, Anime, Season } from '../../jikan';
 import { SeasonService } from '../season/season.service';
 import { Anime as AnimeSeason } from '../../jikan/interfaces/season/Season';
 
@@ -16,8 +17,6 @@ import { SettingsService } from '../settings/settings.service';
 import { SubGroup } from '../sub-group/models';
 import { SubGroupRule, RuleType } from '../sub-group-rule/models';
 import { AnimeFolderService } from '../anime-folder/anime-folder.service';
-import { existsSync, mkdirSync } from 'fs-extra';
-import sanitize from 'sanitize-filename';
 
 const config = {
   client: {
@@ -48,6 +47,12 @@ export class SeriesService {
     private readonly animeFolderService: AnimeFolderService,
   ) {}
 
+  public async createFromSeason(series: Series[], name: SeasonName, year: number) {
+    const season = await this.seasonService.find(name, year);
+
+    return Promise.all(series.map(show => this.create({ ...show, season })));
+  }
+
   public async create(series: Series) {
     const { value: subgroupName } = await this.settingsService.findByKey('defaultSubgroup');
 
@@ -66,6 +71,10 @@ export class SeriesService {
 
       series.subgroups = [subGroup];
     }
+
+    await this.animeFolderService.ensureShowFolder(series.name, series.season.name, series.season.year + '');
+
+    series.folderPath = sanitize(series.name);
     return this.seriesRepository.save(series);
   }
 
@@ -115,14 +124,14 @@ export class SeriesService {
     return this.createFromMAL(await Anime.byId(foundAnime.results[0].mal_id));
   }
 
-  public async createFromMALId(id: number, options?: any) {
-    const series = this.createFromMAL(await Anime.byId(id), options);
+  public async createFromMALId(id: number, season?, year?, options?: any) {
+    const series = await this.createFromMAL(await Anime.byId(id), options);
 
-    const defaultSeason = await this.settingsService.findByKey('currentSeason');
-    const defaultYear = await this.settingsService.findByKey('currentYear');
+    const defaultSeason = season || (await this.settingsService.findByKey('currentSeason')).value;
+    const defaultYear = year || (await this.settingsService.findByKey('currentYear')).value;
 
-    series.season = await this.seasonService.find(defaultSeason.value as SeasonName, Number(defaultYear.value));
-    return series;
+    series.season = await this.seasonService.find(defaultSeason as SeasonName, Number(defaultYear));
+    return this.create(series);
   }
 
   public async update(series: Series) {
@@ -176,19 +185,52 @@ export class SeriesService {
     return this.delete(series);
   }
 
-  public async findBySeason(name: string, year: number) {
-    return (await this.seasonService.find(name as SeasonName, year))?.series ?? [];
+  public async findBySeason(name: string, year: number, sortBy: 'QUEUE' | 'NAME' | 'WATCH_STATUS' = 'QUEUE') {
+    const series = (await this.seasonService.find(name as SeasonName, year))?.series ?? [];
+
+    return series.sort((a, b) => {
+      if (sortBy === 'QUEUE') {
+        return b.showQueue.length - a.showQueue.length;
+      }
+
+      if (sortBy === 'NAME') {
+        return a.name.localeCompare(b.name);
+      }
+
+      if (sortBy === 'WATCH_STATUS') {
+        return a.watchStatus.localeCompare(b.watchStatus);
+      }
+    });
   }
 
-  public async findAll() {
-    return this.seriesRepository.find({ relations: ['season', 'subgroups', 'subgroups.rules'] });
+  public async findAll(overrideSeason?: string, overrideYear?: number) {
+    const series = await this.seriesRepository.find({ relations: ['season', 'subgroups', 'subgroups.rules'] });
+    const currentYear = await this.settingsService.findByKey('currentYear');
+    const currentSeason = await this.settingsService.findByKey('currentSeason');
+
+    return series.filter(
+      found => found.season.name === overrideSeason || (currentSeason.value && found.season.year === (overrideYear || Number(currentYear.value))),
+    );
   }
 
   public async findById(seriesId: number) {
     return this.seriesRepository.findOne({ relations: ['season', 'subgroups', 'subgroups.rules'], where: { id: seriesId } });
   }
 
-  public createFromMALSeason(animeModel: AnimeSeason, options: { autoMatchFolders: boolean }) {
+  public async searchByMALSeason(seasonName: SeasonName, year: number) {
+    const newSeason = await this.seasonService.find(seasonName, year);
+    const season = await Season.anime(year, seasonName);
+
+    const hasEps = (eps = 0) => eps === 0 || eps > 4;
+
+    const promisedSeries = await Promise.all(season.anime.map(anime => this.createFromMALSeason(anime, { autoMatchFolders: false })));
+
+    return promisedSeries.filter(
+      show => !show.continuing && hasEps(show.numberOfEpisodes) && differenceInCalendarYears(new Date(), show.airingData) < 1,
+    );
+  }
+
+  public async createFromMALSeason(animeModel: AnimeSeason, options: { autoMatchFolders: boolean }) {
     const series = new Series();
 
     series.airingData = new Date(animeModel.airing_start) || new Date();
@@ -205,13 +247,13 @@ export class SeriesService {
     series.watchStatus = WatchingStatus.THREE_RULE;
 
     if (options.autoMatchFolders) {
-      series.folderPath = this.animeFolderService.autoMakeFolder(series.name);
+      series.folderPath = await this.animeFolderService.autoMakeFolder(series.name);
     }
 
     return series;
   }
 
-  public createFromMAL(animeModel: AnimeById, options?: { autoMatchFolders: boolean }) {
+  public async createFromMAL(animeModel: AnimeById, options?: { autoMatchFolders: boolean }) {
     const series = new Series();
 
     series.airingData = new Date(animeModel?.aired?.from ?? new Date()) || new Date();
@@ -228,7 +270,7 @@ export class SeriesService {
     series.malId = animeModel.mal_id;
 
     if (options?.autoMatchFolders) {
-      series.folderPath = this.animeFolderService.autoMakeFolder(series.name);
+      series.folderPath = await this.animeFolderService.autoMakeFolder(series.name);
     }
 
     return series;

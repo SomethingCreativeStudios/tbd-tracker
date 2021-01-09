@@ -6,9 +6,9 @@ import { writeFileSync } from 'fs';
 let type = null;
 console.log(process.argv);
 if (process.argv[2] === 'test') {
-  type = new TypeOrmOptions(new ConfigService());
-} else {
   type = new TestTypeOrmOptions(new ConfigService());
+} else {
+  type = new TypeOrmOptions(new ConfigService());
 }
 
 writeFileSync(

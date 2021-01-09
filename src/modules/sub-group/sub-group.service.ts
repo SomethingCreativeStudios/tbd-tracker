@@ -4,6 +4,7 @@ import { SubGroupRepository } from './sub-group.repository';
 import { InjectRepository } from '@nestjs/typeorm';
 import { SubGroupRuleService } from '../sub-group-rule/sub-group-rule.service';
 import { DeepPartial } from 'typeorm';
+import { uniq } from 'ramda';
 
 @Injectable()
 export class SubGroupService {
@@ -36,9 +37,13 @@ export class SubGroupService {
 
   public async find(subGroup: DeepPartial<SubGroup>) {
     return this.subgroupRepository.find({
-      relations: ['rules'],
+      relations: ['rules', 'series'],
       where: [{ id: subGroup.id }, { name: subGroup.name }, { preferedResultion: subGroup.preferedResultion }],
     });
+  }
+
+  public async findOne(subGroup: DeepPartial<SubGroup>) {
+    return (await this.find(subGroup))[0];
   }
 
   public async findAll() {
@@ -50,10 +55,9 @@ export class SubGroupService {
       const results = await this.subgroupRepository
         .createQueryBuilder()
         .select('name')
-        .distinct(true)
         .getRawMany();
 
-      return (results || []).map(({ name }) => name);
+      return uniq((results || []).map(({ name }) => name));
     } catch {
       return [];
     }

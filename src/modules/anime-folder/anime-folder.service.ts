@@ -2,22 +2,41 @@ import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import * as similarity from 'string-similarity';
 import { RuleType } from '../sub-group-rule/models';
 import { AnimeFolderRule } from './models';
-import { existsSync, mkdirSync, readdirSync } from 'fs-extra';
+import { existsSync, mkdirSync, readdirSync, ensureDirSync } from 'fs-extra';
 import { ConfigService } from '../../config';
 import { SeriesService } from '../series/series.service';
 import sanitize from 'sanitize-filename';
+import { SettingsService } from '../settings/settings.service';
+import { join } from 'path';
 
 @Injectable()
 export class AnimeFolderService {
   constructor(
     private configService: ConfigService,
 
+    private settingsService: SettingsService,
+
     @Inject(forwardRef(() => SeriesService))
     private readonly seriesService: SeriesService,
   ) {}
 
-  public getFolders() {
-    return readdirSync(this.configService.baseFolder, { withFileTypes: true })
+  public async getCurrentFolder(season?: string, year?: string) {
+    const currentYear = year || (await this.settingsService.findByKey('currentYear')).value;
+    const currentSeason = season || (await this.settingsService.findByKey('currentSeason')).value;
+
+    return join(this.configService.baseFolder, currentYear, currentSeason as any);
+  }
+
+  public async ensureShowFolder(name: string, season?: string, year?: string) {
+    ensureDirSync(join(await this.getCurrentFolder(season, year), sanitize(name)));
+  }
+
+  public async getFolders() {
+    const currentPath = await this.getCurrentFolder();
+
+    ensureDirSync(currentPath);
+
+    return readdirSync(currentPath, { withFileTypes: true })
       .filter(dirent => dirent.isDirectory())
       .map(dirent => dirent.name);
   }
@@ -25,7 +44,7 @@ export class AnimeFolderService {
   public async createFolder(seriesId: number, folderName?: string) {
     const series = await this.seriesService.findById(seriesId);
 
-    const folderPath = folderName ? process.env.BASE_FOLDER + '\\' + folderName : process.env.BASE_FOLDER + '\\' + sanitize(series.name);
+    const folderPath = folderName ? join(await this.getCurrentFolder(), folderName) : join(await this.getCurrentFolder(), sanitize(series.name));
 
     if (!existsSync(folderPath)) {
       mkdirSync(folderPath);
@@ -34,20 +53,11 @@ export class AnimeFolderService {
     return folderName || sanitize(series.name);
   }
 
-  public autoMakeFolder(seriesName: string) {
-    const folderNames = this.getFolders();
-    const { bestMatch } = similarity.findBestMatch(seriesName, folderNames) || {};
-
-    if (bestMatch?.rating >= 0.7) {
-      return bestMatch.target;
-    }
-
+  public async autoMakeFolder(seriesName: string) {
     const cleanName = sanitize(seriesName);
-    const folderName = process.env.BASE_FOLDER + '\\' + cleanName;
+    const folderName = join(await this.getCurrentFolder(), cleanName);
 
-    if (!existsSync(folderName)) {
-      mkdirSync(folderName);
-    }
+    ensureDirSync(folderName);
 
     return cleanName;
   }

@@ -4,7 +4,6 @@ const path = require('path');
 const nodeExternals = require('webpack-node-externals');
 const CleanWebpackPlugin = require('clean-webpack-plugin');
 const FilterWarningsPlugin = require('webpack-filter-warnings-plugin');
-const StartServerPlugin = require('start-server-webpack-plugin');
 
 function TimeFixPlugin() {
   this.apply = function(compiler) {
@@ -31,7 +30,6 @@ module.exports = options => {
       ...migrations,
       server: ['webpack/hot/poll?100', path.resolve(__dirname, './src/main.ts')],
     },
-    watch: true,
     target: 'node',
     externals: [
       nodeExternals({
@@ -79,7 +77,6 @@ module.exports = options => {
           /typeorm-aurora-data-api-driver/,
         ],
       }),
-      //  new StartServerPlugin({ name: 'server.js' }),
     ],
     output: {
       libraryTarget: 'umd',

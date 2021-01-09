@@ -1,4 +1,6 @@
-FROM node:12.3.0
+FROM node:12.13.1
+
+RUN npm install webpack -g
 
 # Create app directory
 WORKDIR /src/app
@@ -8,11 +10,10 @@ WORKDIR /src/app
 # where available (npm@5+)
 COPY package*.json ./
 
-RUN npm install
 
-# Bundle app source
 COPY . .
+
 
 EXPOSE 3000
 
-CMD [ "node", "dist/server.js" ]
+CMD ['yarn', 'start:prod']

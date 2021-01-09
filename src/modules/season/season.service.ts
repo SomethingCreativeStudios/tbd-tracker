@@ -8,6 +8,8 @@ import { differenceInCalendarYears, format } from 'date-fns';
 import { SettingsService } from '../settings/settings.service';
 import { SubGroup } from '../sub-group/models';
 import { SubGroupRule, RuleType } from '../sub-group-rule/models';
+import { SocketService } from '../socket/socket.service';
+import { AnimeFolderService } from '../anime-folder/anime-folder.service';
 
 @Injectable()
 export class SeasonService {
@@ -19,6 +21,8 @@ export class SeasonService {
     private readonly seriesService: SeriesService,
 
     private readonly settingsService: SettingsService,
+
+    private readonly folderService: AnimeFolderService,
   ) {}
 
   public async create(season: Season) {
@@ -63,9 +67,12 @@ export class SeasonService {
     const newSeason = await this.find(seasonName, year);
     const season = await SeasonSearch.anime(year, seasonName);
     const hasEps = (eps = 0) => eps === 0 || eps > 4;
-    newSeason.series = season.anime
-      .map(anime => this.seriesService.createFromMALSeason(anime, options))
-      .filter(show => !show.continuing && hasEps(show.numberOfEpisodes) && differenceInCalendarYears(new Date(), show.airingData) < 1);
+
+    const promisedSeries = await Promise.all(season.anime.map(anime => this.seriesService.createFromMALSeason(anime, options)));
+
+    newSeason.series = promisedSeries.filter(
+      show => !show.continuing && hasEps(show.numberOfEpisodes) && differenceInCalendarYears(new Date(), show.airingData) < 1,
+    );
 
     return this.update(newSeason);
   }
