@@ -54,9 +54,9 @@ export class SeriesService {
   }
 
   public async create(series: Series) {
-    const { value: subgroupName } = await this.settingsService.findByKey('defaultSubgroup');
+     /*const { value: subgroupName } = await this.settingsService.findByKey('defaultSubgroup');
 
-    if (!series.subgroups || series.subgroups.length === 0) {
+   if (!series.subgroups || series.subgroups.length === 0) {
       const subGroup = new SubGroup();
 
       subGroup.name = subgroupName;
@@ -70,7 +70,7 @@ export class SeriesService {
       subGroup.addRule(rule);
 
       series.subgroups = [subGroup];
-    }
+    }*/
 
     await this.animeFolderService.ensureShowFolder(series.name, series.season.name, series.season.year + '');
 

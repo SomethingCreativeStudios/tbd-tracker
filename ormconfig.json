@@ -7,7 +7,7 @@
   "database": "tbd",
   "synchronize": false,
   "logging": false,
-  "migrationsRun": true,
+  "migrationsRun": false,
   "entities": [
     "./**/models/*.entity.ts"
   ],

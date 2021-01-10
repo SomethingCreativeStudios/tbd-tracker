@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { readdirSync } from 'fs-extra';
-import { clone } from 'ramda';
+import { clone, uniqWith } from 'ramda';
 import { Socket } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
 import { resolve, join } from 'path';
@@ -20,6 +20,7 @@ import { Series } from '../series/models';
 import { ConfigService } from '../../config';
 import { SettingsService } from '../settings/settings.service';
 import { AnimeFolderService } from '../anime-folder/anime-folder.service';
+import { RuleType, SubGroupRule } from '../sub-group-rule/models';
 
 @Injectable()
 export class NyaaService {
@@ -184,6 +185,28 @@ export class NyaaService {
     await this.syncShow(await this.seriesService.findById(id));
   }
 
+  public async suggestSubgroups(name: string, altNames: string[]) {
+    const items = await this.searchItems(NyaaFeed.ANIME, name, false);
+    const altItems = await Promise.all(altNames.map(alt => this.searchItems(NyaaFeed.ANIME, alt, false)));
+
+    const unqiItems = this.unqiNyaaItems(items.concat(...altItems));
+
+    return unqiItems.map(nyatem => {
+      const subGroup = new SubGroup();
+
+      subGroup.name = nyatem.subGroupName;
+      subGroup.preferedResultion = '720';
+
+      const rule = new SubGroupRule();
+      rule.ruleType = RuleType.STARTS_WITH;
+      rule.subGroup = subGroup;
+      rule.isPositive = true;
+      rule.text = this.findSearchTerm(nyatem);
+
+      return subGroup;
+    });
+  }
+
   private async syncShow(series: Series) {
     this.socketService.nyaaSocket.emit('series-syncing', { id: series.id, type: 'STARTING' });
     await this.folderService.ensureShowFolder(series.folderPath);
@@ -199,7 +222,7 @@ export class NyaaService {
     );
 
     series.showQueue = validItems;
-    series.downloaded = currentCount;
+    series.downloaded = series.downloaded > currentCount ? series.downloaded : currentCount;
 
     await this.seriesService.update(series);
 
@@ -374,6 +397,16 @@ export class NyaaService {
     var minutes = Math.floor((milli / (60 * 1000)) % 60) ? Math.floor((milli / (60 * 1000)) % 60) + ' minutes ' : '';
 
     return minutes + seconds;
+  }
+
+  private unqiNyaaItems(nyaaItems: NyaaItem[]) {
+    return uniqWith<NyaaItem, NyaaItem>((a, b) => a.downloadLink === b.downloadLink, nyaaItems);
+  }
+
+  private findSearchTerm(item: NyaaItem) {
+    const withOutGroup = item.itemName.replace('[' + item.subGroupName + ']', '');
+
+    return withOutGroup.substring(0, withOutGroup.indexOf(' -'));
   }
 }
 

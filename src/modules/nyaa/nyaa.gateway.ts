@@ -34,6 +34,11 @@ export class NyaaGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     return true;
   }
 
+  @SubscribeMessage('suggest-subgroups')
+  async suggestShow(@MessageBody() { showName, altNames }: { showName: string; altNames: string[] }) {
+    return this.nyaaService.suggestSubgroups(showName, altNames);
+  }
+
   @SubscribeMessage('download')
   async downloadShow(@MessageBody() { seriesId, url, name }: { url: string; seriesId: number; name: string }) {
     const series = await this.seriesService.findById(seriesId);
