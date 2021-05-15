@@ -43,7 +43,7 @@ export class SubGroupRuleService {
       .toLowerCase()
       .replace(`[${subgroup.name.toLowerCase()}]`, '')
       .trim();
-    const ruleText = rule.text.toLowerCase();
+    const ruleText = rule.text.trim().toLowerCase();
 
     if (!this.matchedResolutions(text, subgroup.preferedResultion)) {
       return false;

@@ -57,8 +57,10 @@ export class NyaaService {
       const trusted = onlyTrusted ? '&f=2' : '';
       const query = `&q=${encodeURI(searchTerm)}`;
 
-      const { items = [] } = (await this.parser.parseURL(`${feed}${trusted}${query}`)) || {};
       console.log(`${feed}${trusted}${query}`);
+
+      const { items = [] } = (await this.tryToParse(`${feed}${trusted}${query}`, 1, 3)) || {};
+
       return (items as NyaaRSSItem[]).map(item => {
         return {
           downloadLink: item.link,
@@ -114,13 +116,13 @@ export class NyaaService {
   }
 
   public isValidItem(item: NyaaItem, groups: SubGroup[]) {
-    const validSubgroups = groups.filter(group => group.name.toLowerCase() === item.subGroupName.toLowerCase());
+    const validSubgroups = groups.filter(group => group.name.trim().toLowerCase() === item.subGroupName.trim().toLowerCase());
 
     if (validSubgroups.length === 0) {
       return false;
     }
 
-    return validSubgroups.some(group => this.subgroupService.matchesSubgroup(item.itemName, group));
+    return validSubgroups.some(group => this.subgroupService.matchesSubgroup(item.itemName.trim(), group));
   }
 
   public async testDownload() {
@@ -186,22 +188,25 @@ export class NyaaService {
   }
 
   public async suggestSubgroups(name: string, altNames: string[]) {
+    await this.waitFor(400);
     const items = await this.searchItems(NyaaFeed.ANIME, name, false);
     const altItems = await Promise.all(altNames.map(alt => this.searchItems(NyaaFeed.ANIME, alt, false)));
 
-    const unqiItems = this.unqiNyaaItems(items.concat(...altItems));
+    const unqiItems = this.uniqNyaaItems(items.concat(...altItems));
 
     return unqiItems.map(nyatem => {
       const subGroup = new SubGroup();
 
       subGroup.name = nyatem.subGroupName;
-      subGroup.preferedResultion = '720';
+      // @ts-ignore
+      subGroup.preferedResultion = nyatem.resolution;
 
       const rule = new SubGroupRule();
       rule.ruleType = RuleType.STARTS_WITH;
-      rule.subGroup = subGroup;
       rule.isPositive = true;
       rule.text = this.findSearchTerm(nyatem);
+
+      subGroup.addRule(rule);
 
       return subGroup;
     });
@@ -215,9 +220,12 @@ export class NyaaService {
     const existingQueue = clone(series.showQueue);
 
     const items = await this.searchItems(NyaaFeed.ANIME, series.name, false);
+    const altItems = await Promise.all(series.otherNames.map(alt => this.searchItems(NyaaFeed.ANIME, alt, false)));
+
+    const uniqItems = this.uniqNyaaItems(items.concat(...altItems));
 
     const validItems = this.findValidItems(
-      (items || []).filter(item => !downloadedEps.includes(item.episodeName)),
+      (uniqItems || []).filter(item => !downloadedEps.includes(item.episodeName)),
       series.subgroups,
     );
 
@@ -235,7 +243,7 @@ export class NyaaService {
       queue: validItems,
     });
 
-    await this.waitFor(500);
+    await this.waitFor(1000);
   }
 
   private addTorrent(url: string, downloadPath: string, queued: boolean = false) {
@@ -399,7 +407,19 @@ export class NyaaService {
     return minutes + seconds;
   }
 
-  private unqiNyaaItems(nyaaItems: NyaaItem[]) {
+  private async tryToParse(url: string, delay: number, max: number) {
+    try {
+      return await this.parser.parseURL(url);
+    } catch (ex) {
+      if (delay === max) {
+        return { items: [] };
+      }
+      await this.waitFor(delay * 1000);
+      return await this.tryToParse(url, delay + 1, max);
+    }
+  }
+
+  private uniqNyaaItems(nyaaItems: NyaaItem[]) {
     return uniqWith<NyaaItem, NyaaItem>((a, b) => a.downloadLink === b.downloadLink, nyaaItems);
   }
 
