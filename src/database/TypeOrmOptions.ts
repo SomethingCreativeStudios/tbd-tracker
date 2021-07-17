@@ -20,7 +20,7 @@ export class TypeOrmOptions implements TypeOrmOptionsFactory {
       synchronize: this.configService.firstRun,
       logging: false,
       migrationsRun: false,
-      entities: getMetadataArgsStorage().tables.map(tbl => tbl.target),
+      entities: getMetadataArgsStorage().tables.map((tbl) => tbl.target),
       migrations: [`./dist/migrations/*{.ts,.js}`],
       cli: {
         migrationsDir: `src/migrations`,

@@ -5,8 +5,6 @@ import { TaskLoader } from './startup/TaskLoder';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 require('dotenv').config();
 
-declare const module: any;
-
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { cors: true });
   app.enableCors();
@@ -27,10 +25,5 @@ async function bootstrap() {
 
   // Run startup tasks
   await TaskLoader.loadTasks(tasks, app);
-
-  if (module.hot) {
-    module.hot.accept();
-    module.hot.dispose(() => app.close());
-  }
 }
 bootstrap();

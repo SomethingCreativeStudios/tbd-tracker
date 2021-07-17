@@ -1,5 +1,4 @@
 import * as dotenv from 'dotenv';
-import * as fs from 'fs';
 import * as Joi from 'joi';
 
 export interface EnvConfig {
@@ -11,7 +10,6 @@ export class ConfigService {
 
   constructor() {
     dotenv.config();
-    //const config = dotenv.parse(fs.readFileSync(`.env`));
     this.envConfig = this.validateInput(process.env);
   }
 
@@ -21,9 +19,7 @@ export class ConfigService {
    */
   private validateInput(envConfig: EnvConfig): EnvConfig {
     const envVarsSchema: Joi.ObjectSchema = Joi.object({
-      NODE_ENV: Joi.string()
-        .valid(['development', 'production', 'test', 'provision'])
-        .default('development'),
+      NODE_ENV: Joi.string().valid('development', 'production', 'test', 'provision').default('development'),
       DB_PORT: Joi.number().default(5432),
       SECRET_KEY: Joi.string().required(),
       DB_HOSTNAME: Joi.string(),
@@ -36,11 +32,11 @@ export class ConfigService {
       BASE_FOLDER: Joi.string().required(),
     }).unknown(true);
 
-    const { error, value: validatedEnvConfig } = Joi.validate(envConfig, envVarsSchema);
+    const { error, value } = envVarsSchema.validate(envConfig);
     if (error) {
       throw new Error(`Config validation error: ${error.message}`);
     }
-    return validatedEnvConfig;
+    return value;
   }
 
   get secretKey(): string {

@@ -10,12 +10,9 @@ import { Search, Anime, Season } from '../../jikan';
 import { SeasonService } from '../season/season.service';
 import { Anime as AnimeSeason } from '../../jikan/interfaces/season/Season';
 
-import { AuthorizationCode } from 'simple-oauth2';
 import { SubGroupService } from '../sub-group';
 import { SeasonName } from '../season/models';
 import { SettingsService } from '../settings/settings.service';
-import { SubGroup } from '../sub-group/models';
-import { SubGroupRule, RuleType } from '../sub-group-rule/models';
 import { AnimeFolderService } from '../anime-folder/anime-folder.service';
 
 const config = {
@@ -50,11 +47,11 @@ export class SeriesService {
   public async createFromSeason(series: Series[], name: SeasonName, year: number) {
     const season = await this.seasonService.find(name, year);
 
-    return Promise.all(series.map(show => this.create({ ...show, season })));
+    return Promise.all(series.map((show) => this.create({ ...show, season })));
   }
 
   public async create(series: Series) {
-     /*const { value: subgroupName } = await this.settingsService.findByKey('defaultSubgroup');
+    /*const { value: subgroupName } = await this.settingsService.findByKey('defaultSubgroup');
 
    if (!series.subgroups || series.subgroups.length === 0) {
       const subGroup = new SubGroup();
@@ -85,33 +82,7 @@ export class SeriesService {
       throw Error('Show Not Found');
     }
 
-    return (await Promise.all(foundAnime.results.map(async result => this.createFromMAL(await Anime.byId(result.mal_id))))).filter(
-      show => show.imageUrl,
-    );
-  }
-
-  public async getToken() {
-    console.log('TEST');
-    const client = new AuthorizationCode(config);
-
-    const authorizationUri = client.authorizeURL({
-      redirect_uri: 'http://localhost:3000/callback',
-    });
-
-    const tokenParams = {
-      code: 'AUTHORIZATION_CODE',
-      redirect_uri: 'http://localhost:3000/callback',
-      code_challenge_method: 'plain',
-      response_type: 'code',
-    };
-
-    try {
-      const accessToken = await client.getToken(tokenParams, { json: true });
-
-      console.log(accessToken);
-    } catch (error) {
-      console.log('Access Token Error', error.message);
-    }
+    return (await Promise.all(foundAnime.results.map(async (result) => this.createFromMAL(await Anime.byId(result.mal_id))))).filter((show) => show.imageUrl);
   }
 
   public async createFromMALName(seriesName: string) {
@@ -178,7 +149,7 @@ export class SeriesService {
   public async deketeById(id: number) {
     const series = await this.seriesRepository.findOne({ relations: ['season', 'subgroups', 'subgroups.rules'], where: { id: id } });
 
-    const subPromises = (series.subgroups || []).map(sub => this.subgroupService.delete(sub));
+    const subPromises = (series.subgroups || []).map((sub) => this.subgroupService.delete(sub));
 
     await Promise.all(subPromises);
 
@@ -208,9 +179,7 @@ export class SeriesService {
     const currentYear = await this.settingsService.findByKey('currentYear');
     const currentSeason = await this.settingsService.findByKey('currentSeason');
 
-    return series.filter(
-      found => found.season.name === overrideSeason || (currentSeason.value && found.season.year === (overrideYear || Number(currentYear.value))),
-    );
+    return series.filter((found) => found.season.name === overrideSeason || (currentSeason.value && found.season.year === (overrideYear || Number(currentYear.value))));
   }
 
   public async findById(seriesId: number) {
@@ -223,11 +192,9 @@ export class SeriesService {
 
     const hasEps = (eps = 0) => eps === 0 || eps > 4;
 
-    const promisedSeries = await Promise.all(season.anime.map(anime => this.createFromMALSeason(anime, { autoMatchFolders: false })));
+    const promisedSeries = await Promise.all(season.anime.map((anime) => this.createFromMALSeason(anime, { autoMatchFolders: false })));
 
-    return promisedSeries.filter(
-      show => !show.continuing && hasEps(show.numberOfEpisodes) && differenceInCalendarYears(new Date(), show.airingData) < 1,
-    );
+    return promisedSeries.filter((show) => !show.continuing && hasEps(show.numberOfEpisodes) && differenceInCalendarYears(new Date(), show.airingData) < 1);
   }
 
   public async createFromMALSeason(animeModel: AnimeSeason, options: { autoMatchFolders: boolean }) {
@@ -235,7 +202,7 @@ export class SeriesService {
 
     series.airingData = new Date(animeModel.airing_start) || new Date();
     series.description = animeModel.synopsis;
-    series.genres = animeModel?.genres?.map(genre => genre.name) ?? [];
+    series.genres = animeModel?.genres?.map((genre) => genre.name) ?? [];
     series.imageUrl = animeModel.image_url;
     series.name = animeModel.title;
     series.otherNames = [];
@@ -258,7 +225,7 @@ export class SeriesService {
 
     series.airingData = new Date(animeModel?.aired?.from ?? new Date()) || new Date();
     series.description = animeModel.synopsis;
-    series.genres = animeModel?.genres?.map(genre => genre.name) ?? [];
+    series.genres = animeModel?.genres?.map((genre) => genre.name) ?? [];
     series.imageUrl = animeModel.image_url;
     series.name = animeModel.title;
     series.otherNames = [animeModel.title_english, animeModel.title_japanese, ...(animeModel?.title_synonyms ?? [])];
