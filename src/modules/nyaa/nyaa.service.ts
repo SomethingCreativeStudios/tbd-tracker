@@ -51,6 +51,21 @@ export class NyaaService {
     });
   }
 
+  public findFileNameBySeries(series: Series, currentName: string) {
+    if (!series.showName && !series.offset) {
+      return currentName;
+    }
+
+    const epNumber = this.findCount(currentName) + (series.offset || 0);
+    const subgroup =
+      currentName
+        .match(/\[(.*?)\]/g)?.[0]
+        ?.replace('[', '')
+        .replace(']', '') ?? '';
+
+    return series.showName ? `[${subgroup}] ${series.showName} - ${epNumber}.mkv` : currentName.replace(`- ${this.findCount(currentName)}`, `- ${epNumber}`);
+  }
+
   public async searchItems(feed: NyaaFeed, searchTerm: string, onlyTrusted = false): Promise<NyaaItem[]> {
     try {
       const trusted = onlyTrusted ? '&f=2' : '';
@@ -159,9 +174,9 @@ export class NyaaService {
       console.log('Torrents downloading', this.downloadingTorrents.length);
       if (this.downloadingTorrents.length >= 4) {
         console.log('Queued', fileName);
-        this.queuedTorrents.push({ path: downloadPath, url: torrentName, fileName });
+        this.queuedTorrents.push({ fileName, path: downloadPath, url: torrentName });
 
-        this.socketService.nyaaSocket.emit('torrent-queued', { url: torrentName, fileName });
+        this.socketService.nyaaSocket.emit('torrent-queued', { fileName, url: torrentName });
         return;
       }
 

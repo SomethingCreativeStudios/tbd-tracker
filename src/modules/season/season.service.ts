@@ -8,7 +8,7 @@ import { differenceInCalendarYears, format } from 'date-fns';
 import { SettingsService } from '../settings/settings.service';
 import { SubGroup } from '../sub-group/models';
 import { SubGroupRule, RuleType } from '../sub-group-rule/models';
-import { SocketService } from '../socket/socket.service';
+import { createFromMALSeason } from '../series/helpers/mal-helpers';
 import { AnimeFolderService } from '../anime-folder/anime-folder.service';
 
 @Injectable()
@@ -32,7 +32,7 @@ export class SeasonService {
   public async update(season: Season) {
     const { value: subgroupName } = await this.settingsService.findByKey('defaultSubgroup');
 
-    season.series.forEach(series => {
+    season.series.forEach((series) => {
       if (!series.subgroups || series.subgroups.length === 0) {
         const subGroup = new SubGroup();
 
@@ -54,8 +54,8 @@ export class SeasonService {
   }
 
   public async delete(season: Season) {
-    const deletes = season.series.map(series => {
-      return this.seriesService.delete(series);
+    const deletes = season.series.map((series) => {
+      return this.seriesService.deleteById(series.id);
     });
 
     await Promise.all(deletes);
@@ -68,11 +68,9 @@ export class SeasonService {
     const season = await SeasonSearch.anime(year, seasonName);
     const hasEps = (eps = 0) => eps === 0 || eps > 4;
 
-    const promisedSeries = await Promise.all(season.anime.map(anime => this.seriesService.createFromMALSeason(anime, options)));
+    const promisedSeries = await Promise.all(season.anime.map((anime) => createFromMALSeason(anime, options)));
 
-    newSeason.series = promisedSeries.filter(
-      show => !show.continuing && hasEps(show.numberOfEpisodes) && differenceInCalendarYears(new Date(), show.airingData) < 1,
-    );
+    newSeason.series = promisedSeries.filter((show) => !show.continuing && hasEps(show.numberOfEpisodes) && differenceInCalendarYears(new Date(), show.airingData) < 1);
 
     return this.update(newSeason);
   }

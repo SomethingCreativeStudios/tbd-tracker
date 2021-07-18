@@ -3,7 +3,6 @@ import { SubGroup } from './models';
 import { SubGroupRepository } from './sub-group.repository';
 import { InjectRepository } from '@nestjs/typeorm';
 import { SubGroupRuleService } from '../sub-group-rule/sub-group-rule.service';
-import { DeepPartial } from 'typeorm';
 import { uniq } from 'ramda';
 import { CreateSubGroupDTO } from './dtos/CreateSubGroupDTO';
 import { UpdateSubGroupDTO } from './dtos/UpdateSubGroupDTO';
@@ -59,12 +58,14 @@ export class SubGroupService {
       return true;
     }
 
-    const goodRules = subgroup.rules.filter((rule) => rule.isPositive);
-    const badRules = subgroup.rules.filter((rule) => !rule.isPositive);
+    const positiveRules = subgroup.rules.filter((rule) => rule.isPositive);
+    const negativeRules = subgroup.rules.filter((rule) => !rule.isPositive);
 
-    const passesGood = goodRules.every((rule) => this.subgroupRuleService.matchRule(text, rule, subgroup));
-    const passesBad = badRules.every((rule) => this.subgroupRuleService.matchRule(text, rule, subgroup));
+    const search = (rule) => this.subgroupRuleService.matchRule(text, rule, subgroup);
 
-    return passesGood && (badRules.length > 0 ? !passesBad : true);
+    const positivePassed = positiveRules.length === 0 || positiveRules.some(search);
+    const negativePassed = negativeRules.length === 0 || !negativeRules.some(search);
+
+    return positivePassed && negativePassed;
   }
 }

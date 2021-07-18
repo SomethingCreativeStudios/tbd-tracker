@@ -5,15 +5,20 @@ import sanitize from 'sanitize-filename';
 
 import { Series, WatchingStatus } from './models';
 import { SeriesRepository } from './series.repository';
-import { AnimeById } from 'jikants/dist/src/interfaces/anime/ById';
-import { Search, Anime, Season } from '../../jikan';
+import { Anime, Season } from '../../jikan';
 import { SeasonService } from '../season/season.service';
-import { Anime as AnimeSeason } from '../../jikan/interfaces/season/Season';
 
 import { SubGroupService } from '../sub-group';
 import { SeasonName } from '../season/models';
 import { SettingsService } from '../settings/settings.service';
 import { AnimeFolderService } from '../anime-folder/anime-folder.service';
+import { createFromMAL, createFromMALSeason, findFromMAL } from './helpers/mal-helpers';
+import { CreateFromMalDTO } from './dtos/CreateFromMalDTO';
+import { UpdateSeriesDTO } from './dtos/UpdateSeriesDTO';
+import { CreateBySeasonDTO } from './dtos/CreateBySeasonDTO';
+import { SearchBySeasonDTO } from './dtos/SearchBySeasonDTO';
+import { Seasons } from 'jikants/dist/src/interfaces/season/Season';
+import { MalSearchDTO } from './dtos/MalSearchDTO';
 
 const config = {
   client: {
@@ -44,10 +49,8 @@ export class SeriesService {
     private readonly animeFolderService: AnimeFolderService,
   ) {}
 
-  public async createFromSeason(series: Series[], name: SeasonName, year: number) {
-    const season = await this.seasonService.find(name, year);
-
-    return Promise.all(series.map((show) => this.create({ ...show, season })));
+  public async createFromSeason({ malIds, seasonName, seasonYear }: CreateBySeasonDTO) {
+    return Promise.all(malIds.map((id) => this.createFromMALId({ seasonName, seasonYear, malId: id })));
   }
 
   public async create(series: Series) {
@@ -57,49 +60,31 @@ export class SeriesService {
     return this.seriesRepository.save(series);
   }
 
-  public async findFromMAL(seriesName: string) {
-    const foundAnime = await Search.search(seriesName, 'anime', 1);
+  public async createFromMALId(createModel: CreateFromMalDTO) {
+    const series = await createFromMAL(await Anime.byId(createModel.malId), { autoMatchFolders: createModel.autoMatchFolders ?? true });
 
-    if ((foundAnime?.results?.length ?? 0) === 0) {
-      throw Error('Show Not Found');
-    }
-
-    return (await Promise.all(foundAnime.results.map(async (result) => this.createFromMAL(await Anime.byId(result.mal_id))))).filter((show) => show.imageUrl);
-  }
-
-  public async createFromMALName(seriesName: string) {
-    const foundAnime = await Search.search(seriesName, 'anime', 1);
-
-    if ((foundAnime?.results?.length ?? 0) === 0) {
-      throw Error('Show Not Found');
-    }
-
-    return this.createFromMAL(await Anime.byId(foundAnime.results[0].mal_id));
-  }
-
-  public async createFromMALId(id: number, season?, year?, options?: any) {
-    const series = await this.createFromMAL(await Anime.byId(id), options);
-
-    const defaultSeason = season || (await this.settingsService.findByKey('currentSeason')).value;
-    const defaultYear = year || (await this.settingsService.findByKey('currentYear')).value;
+    const defaultSeason = createModel.seasonName || (await this.settingsService.findByKey('currentSeason')).value;
+    const defaultYear = createModel.seasonYear || (await this.settingsService.findByKey('currentYear')).value;
 
     series.season = await this.seasonService.find(defaultSeason as SeasonName, Number(defaultYear));
     return this.create(series);
   }
 
-  public async update(series: Series) {
-    if (series.downloaded > 3 && series.watchStatus === WatchingStatus.THREE_RULE) {
-      series.watchStatus = WatchingStatus.WATCHING;
+  public async update(updateModel: UpdateSeriesDTO) {
+    if (updateModel.downloaded > 3 && updateModel.watchStatus === WatchingStatus.THREE_RULE) {
+      updateModel.watchStatus = WatchingStatus.WATCHING;
     }
 
-    if (series.downloaded === series.numberOfEpisodes && series.numberOfEpisodes > 1 && series.watchStatus === WatchingStatus.WATCHING) {
-      series.watchStatus = WatchingStatus.WATCHED;
+    if (updateModel.downloaded === updateModel.numberOfEpisodes && updateModel.numberOfEpisodes > 1 && updateModel.watchStatus === WatchingStatus.WATCHING) {
+      updateModel.watchStatus = WatchingStatus.WATCHED;
     }
 
-    return this.seriesRepository.save(series);
+    await this.seriesRepository.update({ id: updateModel.id }, updateModel);
+
+    return this.seriesRepository.findOne({ id: updateModel.id }, { relations: ['season', 'subgroups', 'subgroups.rules'] });
   }
 
-  public async updateWatchStatus(id: number) {
+  public async toggleWatchStatus(id: number) {
     const series = await this.findById(id);
     const { watchStatus } = series;
 
@@ -119,23 +104,19 @@ export class SeriesService {
       series.watchStatus = WatchingStatus.NOT_WATCHING;
     }
 
-    await this.seriesRepository.save(series);
+    await this.seriesRepository.update({ id }, { watchStatus: series.watchStatus });
 
     return series.watchStatus;
   }
 
-  public async delete(series: Series) {
-    return this.seriesRepository.remove(series);
-  }
-
-  public async deketeById(id: number) {
+  public async deleteById(id: number) {
     const series = await this.seriesRepository.findOne({ relations: ['season', 'subgroups', 'subgroups.rules'], where: { id } });
 
     const subPromises = (series.subgroups || []).map((sub) => this.subgroupService.delete(sub.id));
 
     await Promise.all(subPromises);
 
-    return this.delete(series);
+    return this.seriesRepository.delete(series.id);
   }
 
   public async findBySeason(name: string, year: number, sortBy: 'QUEUE' | 'NAME' | 'WATCH_STATUS' = 'QUEUE') {
@@ -168,60 +149,17 @@ export class SeriesService {
     return this.seriesRepository.findOne({ relations: ['season', 'subgroups', 'subgroups.rules'], where: { id: seriesId } });
   }
 
-  public async searchByMALSeason(seasonName: SeasonName, year: number) {
-    const newSeason = await this.seasonService.find(seasonName, year);
-    const season = await Season.anime(year, seasonName);
+  public async searchByMALSeason({ season, year }: MalSearchDTO) {
+    const foundSeason = await Season.anime(year, season);
 
     const hasEps = (eps = 0) => eps === 0 || eps > 4;
 
-    const promisedSeries = await Promise.all(season.anime.map((anime) => this.createFromMALSeason(anime, { autoMatchFolders: false })));
+    const promisedSeries = await Promise.all(foundSeason.anime.map((anime) => createFromMALSeason(anime, { autoMatchFolders: false })));
 
     return promisedSeries.filter((show) => !show.continuing && hasEps(show.numberOfEpisodes) && differenceInCalendarYears(new Date(), show.airingData) < 1);
   }
 
-  public async createFromMALSeason(animeModel: AnimeSeason, options: { autoMatchFolders: boolean }) {
-    const series = new Series();
-
-    series.airingData = new Date(animeModel.airing_start) || new Date();
-    series.description = animeModel.synopsis;
-    series.genres = animeModel?.genres?.map((genre) => genre.name) ?? [];
-    series.imageUrl = animeModel.image_url;
-    series.name = animeModel.title;
-    series.otherNames = [];
-    series.numberOfEpisodes = animeModel.episodes || 0;
-    series.score = animeModel.score;
-    series.studio = animeModel.licensors?.join(' ') ?? '';
-    series.continuing = animeModel.continuing;
-    series.tags = [];
-    series.watchStatus = WatchingStatus.THREE_RULE;
-
-    if (options.autoMatchFolders) {
-      series.folderPath = await this.animeFolderService.autoMakeFolder(series.name);
-    }
-
-    return series;
-  }
-
-  public async createFromMAL(animeModel: AnimeById, options?: { autoMatchFolders: boolean }) {
-    const series = new Series();
-
-    series.airingData = new Date(animeModel?.aired?.from ?? new Date()) || new Date();
-    series.description = animeModel.synopsis;
-    series.genres = animeModel?.genres?.map((genre) => genre.name) ?? [];
-    series.imageUrl = animeModel.image_url;
-    series.name = animeModel.title;
-    series.otherNames = [animeModel.title_english, animeModel.title_japanese, ...(animeModel?.title_synonyms ?? [])];
-    series.numberOfEpisodes = animeModel.episodes || 0;
-    series.score = animeModel.score;
-    series.studio = animeModel?.studios?.map(({ name }) => name).join(' ') ?? '';
-    series.tags = [];
-    series.watchStatus = WatchingStatus.THREE_RULE;
-    series.malId = animeModel.mal_id;
-
-    if (options?.autoMatchFolders) {
-      series.folderPath = await this.animeFolderService.autoMakeFolder(series.name);
-    }
-
-    return series;
+  public async findFromMAL(name: string) {
+    return findFromMAL(name);
   }
 }

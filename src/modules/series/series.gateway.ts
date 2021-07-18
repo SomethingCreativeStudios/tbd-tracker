@@ -1,12 +1,4 @@
-import {
-  WebSocketGateway,
-  OnGatewayInit,
-  OnGatewayConnection,
-  OnGatewayDisconnect,
-  WebSocketServer,
-  SubscribeMessage,
-  MessageBody,
-} from '@nestjs/websockets';
+import { WebSocketGateway, OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect, WebSocketServer, SubscribeMessage, MessageBody } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { SeriesService } from './series.service';
@@ -16,6 +8,11 @@ import { Series } from './models';
 import { mergeDeepRight } from 'ramda';
 import { SocketService } from '../socket/socket.service';
 import { AnimeFolderService } from '../anime-folder/anime-folder.service';
+import { SearchBySeasonDTO } from './dtos/SearchBySeasonDTO';
+import { CreateBySeasonDTO } from './dtos/CreateBySeasonDTO';
+import { CreateFromMalDTO } from './dtos/CreateFromMalDTO';
+import { UpdateSeriesDTO } from './dtos/UpdateSeriesDTO';
+import { MalSearchDTO } from './dtos/MalSearchDTO';
 
 @WebSocketGateway(8180, { namespace: 'series' })
 export class SeriesGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
@@ -33,8 +30,23 @@ export class SeriesGateway implements OnGatewayInit, OnGatewayConnection, OnGate
 
   private logger: Logger = new Logger('SeriesGateway');
 
-  @SubscribeMessage('get')
-  async getAllSeries(@MessageBody() { season, year, sortBy }: { season?: string; year?: number; sortBy: '' }) {
+  @SubscribeMessage('create-mal')
+  async createMal(@MessageBody() createModel: CreateFromMalDTO) {
+    return this.seriesService.createFromMALId(createModel);
+  }
+
+  @SubscribeMessage('update')
+  async updateSeries(@MessageBody() updateModel: UpdateSeriesDTO) {
+    return this.seriesService.update(updateModel);
+  }
+
+  @SubscribeMessage('remove')
+  async removeSeries(@MessageBody() id: number) {
+    return this.seriesService.deleteById(id);
+  }
+
+  @SubscribeMessage('find-by-season')
+  async getAllSeries(@MessageBody() { season, year, sortBy }: SearchBySeasonDTO) {
     if (!season && !year) {
       return this.seriesService.findAll();
     }
@@ -43,40 +55,23 @@ export class SeriesGateway implements OnGatewayInit, OnGatewayConnection, OnGate
   }
 
   @SubscribeMessage('create-season')
-  async createSeason(@MessageBody() { seasonName, seasonYear, series }: { series: Series[]; seasonName: SeasonName; seasonYear: number }) {
-    return this.seriesService.createFromSeason(series, seasonName, seasonYear);
+  async createSeason(@MessageBody() createModel: CreateBySeasonDTO) {
+    return this.seriesService.createFromSeason(createModel);
   }
 
-  @SubscribeMessage('create-mal')
-  async createMal(@MessageBody() { seasonName, seasonYear, malId }: { malId: number; seasonName: SeasonName; seasonYear: number }) {
-    console.log(seasonName, seasonYear);
-    return this.seriesService.createFromMALId(malId, seasonName, seasonYear);
-  }
-
-  @SubscribeMessage('mal-search')
+  @SubscribeMessage('mal/search-name')
   async searchMAL(@MessageBody() name: string) {
     return this.seriesService.findFromMAL(name);
   }
 
-  @SubscribeMessage('season-search')
-  async findAllBySeason(@MessageBody() { season, year }: { season: SeasonName; year: number }) {
-    return this.seriesService.searchByMALSeason(season, year);
+  @SubscribeMessage('mal/search-season')
+  async findAllBySeason(@MessageBody() searchModel: MalSearchDTO) {
+    return this.seriesService.searchByMALSeason(searchModel);
   }
 
-  @SubscribeMessage('update')
-  async updateSeries(@MessageBody() series: DeepPartial<Series>) {
-    const foundSeries = await this.seriesService.findById(series.id);
-    return this.seriesService.update(mergeDeepRight(foundSeries, series) as Series);
-  }
-
-  @SubscribeMessage('watch-status')
+  @SubscribeMessage('toggle-watch-status')
   async updateWatchCount(@MessageBody() id: number) {
-    return this.seriesService.updateWatchStatus(id);
-  }
-
-  @SubscribeMessage('remove')
-  async removeSeries(@MessageBody() id: number) {
-    return this.seriesService.deketeById(id);
+    return this.seriesService.toggleWatchStatus(id);
   }
 
   @SubscribeMessage('folder-names')

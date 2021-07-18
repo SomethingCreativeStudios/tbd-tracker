@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { SubGroupRule, RuleType } from './models';
 import { SubGroupRuleRepository } from './sub-group-rule.repository';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -13,6 +13,8 @@ export class SubGroupRuleService {
   constructor(
     @InjectRepository(SubGroupRule)
     private readonly subgroupRuleRepository: SubGroupRuleRepository,
+
+    @Inject(forwardRef(() => SubGroupService))
     private readonly subgroupService: SubGroupService,
   ) {}
 
@@ -69,7 +71,7 @@ export class SubGroupRuleService {
     }
 
     if (rule.ruleType === RuleType.REGEX) {
-      return treatedText.match(new RegExp(ruleText)).length > 0;
+      return treatedText.match(new RegExp(ruleText))?.length > 0;
     }
 
     return rule.ruleType === RuleType.BLANK;
