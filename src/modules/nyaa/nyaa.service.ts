@@ -32,7 +32,6 @@ export class NyaaService {
 
   constructor(
     private readonly subgroupService: SubGroupService,
-    private readonly configService: ConfigService,
     private readonly seriesService: SeriesService,
     private readonly socketService: SocketService,
     private readonly settingsService: SettingsService,

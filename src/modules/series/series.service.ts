@@ -51,25 +51,7 @@ export class SeriesService {
   }
 
   public async create(series: Series) {
-    /*const { value: subgroupName } = await this.settingsService.findByKey('defaultSubgroup');
-
-   if (!series.subgroups || series.subgroups.length === 0) {
-      const subGroup = new SubGroup();
-
-      subGroup.name = subgroupName;
-      subGroup.preferedResultion = '720';
-
-      const rule = new SubGroupRule();
-      rule.isPositive = true;
-      rule.ruleType = RuleType.STARTS_WITH;
-      rule.text = series.name;
-
-      subGroup.addRule(rule);
-
-      series.subgroups = [subGroup];
-    }*/
-
-    await this.animeFolderService.ensureShowFolder(series.name, series.season.name, series.season.year + '');
+    await this.animeFolderService.ensureShowFolder(series.name, series.season.name, String(series.season.year));
 
     series.folderPath = sanitize(series.name);
     return this.seriesRepository.save(series);
@@ -147,9 +129,9 @@ export class SeriesService {
   }
 
   public async deketeById(id: number) {
-    const series = await this.seriesRepository.findOne({ relations: ['season', 'subgroups', 'subgroups.rules'], where: { id: id } });
+    const series = await this.seriesRepository.findOne({ relations: ['season', 'subgroups', 'subgroups.rules'], where: { id } });
 
-    const subPromises = (series.subgroups || []).map((sub) => this.subgroupService.delete(sub));
+    const subPromises = (series.subgroups || []).map((sub) => this.subgroupService.delete(sub.id));
 
     await Promise.all(subPromises);
 

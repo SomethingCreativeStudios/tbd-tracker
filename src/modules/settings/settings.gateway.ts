@@ -1,17 +1,12 @@
-import {
-  WebSocketGateway,
-  OnGatewayInit,
-  OnGatewayConnection,
-  OnGatewayDisconnect,
-  WebSocketServer,
-  SubscribeMessage,
-  MessageBody,
-} from '@nestjs/websockets';
+import { WebSocketGateway, OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect, WebSocketServer, SubscribeMessage, MessageBody } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { SettingsService } from './settings.service';
 import { SocketService } from '../socket/socket.service';
 import { Settings } from './models';
+import { CreateSettingDTO } from './dto/CreateSettingDTO';
+import { FindSettingDTO } from './dto/FindSettingDTO';
+import { UpdateSettingDTO } from './dto/UpdateSettingDTO';
 
 @WebSocketGateway(8180, { namespace: 'settings' })
 export class SettingsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
@@ -28,24 +23,18 @@ export class SettingsGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   private logger: Logger = new Logger('SettingsGateway');
 
   @SubscribeMessage('create')
-  async createSettings(@MessageBody() settings: Settings) {
+  async createSettings(@MessageBody() settings: CreateSettingDTO) {
     return this.settingService.create(settings);
   }
 
-  @SubscribeMessage('fetch')
-  async findAll() {
-    return this.settingService.findAll();
-  }
-
-  @SubscribeMessage('key')
-  async findByKey(@MessageBody() key: string) {
-    return this.settingService.findByKey(key);
+  @SubscribeMessage('search')
+  async find(searchModel: FindSettingDTO) {
+    return this.settingService.find(searchModel);
   }
 
   @SubscribeMessage('update')
-  async updateSettings(@MessageBody() { key, value }: { key: string; value: string }) {
-    const foundKey = (await this.settingService.findByKey(key)) || (await this.settingService.createKey(key));
-    return this.settingService.update({ ...foundKey, value });
+  async updateSettings(@MessageBody() updateModel: UpdateSettingDTO) {
+    return this.settingService.update(updateModel);
   }
 
   @SubscribeMessage('delete')

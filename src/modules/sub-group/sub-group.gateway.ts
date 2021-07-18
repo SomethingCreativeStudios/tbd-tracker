@@ -1,12 +1,4 @@
-import {
-  WebSocketGateway,
-  OnGatewayInit,
-  OnGatewayConnection,
-  OnGatewayDisconnect,
-  WebSocketServer,
-  SubscribeMessage,
-  MessageBody,
-} from '@nestjs/websockets';
+import { WebSocketGateway, OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect, WebSocketServer, SubscribeMessage, MessageBody } from '@nestjs/websockets';
 import { Logger, Inject, forwardRef } from '@nestjs/common';
 import { Server } from 'socket.io';
 import { SubGroupService } from './sub-group.service';
@@ -14,10 +6,12 @@ import { SubGroup } from './models';
 import { DeepPartial } from 'typeorm';
 import { mergeDeepRight } from 'ramda';
 import { SeriesService } from '../series/series.service';
+import { CreateSubGroupDTO } from './dtos/CreateSubGroupDTO';
+import { UpdateSubGroupDTO } from './dtos/UpdateSubGroupDTO';
 
 @WebSocketGateway(8180, { namespace: 'subgroup' })
 export class SubGroupGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
-  constructor(@Inject(forwardRef(() => SeriesService)) private seriesService: SeriesService, private subgroupService: SubGroupService) {}
+  constructor(private subgroupService: SubGroupService) {}
   afterInit(server: any) {}
   handleConnection(client: any, ...args: any[]) {}
   handleDisconnect(client: any) {}
@@ -27,29 +21,18 @@ export class SubGroupGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   private logger: Logger = new Logger('SubgroupGateway');
 
   @SubscribeMessage('create')
-  async createSubgroup(@MessageBody() data: { seriesId: number; subgroup: SubGroup }) {
-    data.subgroup.series = await this.seriesService.findById(data.seriesId);
-
-    await this.subgroupService.create(data.subgroup);
-
-    return this.seriesService.findById(data.seriesId);
+  async createSubgroup(@MessageBody() createModel: CreateSubGroupDTO) {
+    return this.subgroupService.create(createModel);
   }
 
   @SubscribeMessage('remove')
   async removeSubgroup(@MessageBody() id: number) {
-    const foundGroup = await this.subgroupService.findOne({ id });
-    await this.subgroupService.delete(foundGroup);
-
-    return this.seriesService.findById(foundGroup.series.id);
+    return this.subgroupService.delete(id);
   }
 
   @SubscribeMessage('update')
-  async updateSubgroup(@MessageBody() subgroup: DeepPartial<SubGroup>) {
-    const foundGroup = await this.subgroupService.findOne({ id: subgroup.id });
-
-    await this.subgroupService.update(mergeDeepRight(foundGroup, subgroup) as SubGroup);
-
-    return this.seriesService.findById(foundGroup.series.id);
+  async updateSubgroup(@MessageBody() updateModel: UpdateSubGroupDTO) {
+    this.subgroupService.update(updateModel);
   }
 
   @SubscribeMessage('subgroup-names')

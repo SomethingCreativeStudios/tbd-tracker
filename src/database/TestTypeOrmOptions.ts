@@ -13,7 +13,7 @@ export class TestTypeOrmOptions implements TypeOrmOptionsFactory {
     return {
       type: 'postgres',
       host: this.configService.databaseHostName,
-      port: 5432,
+      port: this.configService.databasePort,
       username: this.configService.databaseUserName,
       password: this.configService.databasePassword,
       database: 'tbd_test',

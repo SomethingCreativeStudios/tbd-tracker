@@ -1,7 +1,6 @@
 import { Module, HttpModule, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Series } from './models';
-import { SeriesController } from './series.controller';
 import { SeriesService } from './series.service';
 import { SeasonModule } from '../season/season.module';
 import { SubgroupModule } from '../sub-group';
@@ -21,7 +20,6 @@ import { SocketModule } from '../socket/socket.module';
     forwardRef(() => NyaaModule),
     forwardRef(() => AnimeFolderModule),
   ],
-  controllers: [SeriesController],
   providers: [SeriesService, SeriesGateway],
   exports: [SeriesService],
 })
