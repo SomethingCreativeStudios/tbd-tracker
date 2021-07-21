@@ -16,7 +16,8 @@ export class SubGroupService {
   ) {}
 
   public async create(subGroup: CreateSubGroupDTO) {
-    return this.subgroupRepository.save(subGroup);
+    
+    const subgroups = await this.subgroupRepository.save({ name: subGroup.name, preferedResultion: subGroup.preferedResultion });
   }
 
   public async createAll(subGroups: CreateSubGroupDTO[]) {

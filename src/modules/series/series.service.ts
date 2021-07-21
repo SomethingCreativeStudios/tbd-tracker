@@ -53,6 +53,24 @@ export class SeriesService {
     return Promise.all(malIds.map((id) => this.createFromMALId({ seasonName, seasonYear, malId: id })));
   }
 
+  public async syncImage(id: number) {
+    const series = await this.seriesRepository.findOne({ id });
+    const malSeries = await createFromMAL(await Anime.byId(series.malId), { autoMatchFolders: false });
+
+    await this.seriesRepository.update({ id }, { imageUrl: malSeries.imageUrl });
+
+    return malSeries.imageUrl;
+  }
+
+  public async syncWithMal(id: number) {
+    const series = await this.seriesRepository.findOne({ id });
+    const malSeries = await createFromMAL(await Anime.byId(series.malId), { autoMatchFolders: false });
+
+    await this.seriesRepository.update({ id }, { airingData: malSeries.airingData, description: malSeries.description, numberOfEpisodes: malSeries.numberOfEpisodes, score: malSeries.score });
+
+    return this.seriesRepository.findOne({ id });
+  }
+
   public async create(series: Series) {
     await this.animeFolderService.ensureShowFolder(series.name, series.season.name, String(series.season.year));
 

@@ -78,4 +78,14 @@ export class SeriesGateway implements OnGatewayInit, OnGatewayConnection, OnGate
   async fetchFolderNames() {
     return this.folderService.getFolders();
   }
+
+  @SubscribeMessage('sync-mal')
+  async syncWithMal(@MessageBody() id: number) {
+    return this.seriesService.syncWithMal(id);
+  }
+
+  @SubscribeMessage('sync-mal-image')
+  async syncImageWithMal(@MessageBody() id: number) {
+    return this.seriesService.syncImage(id);
+  }
 }
