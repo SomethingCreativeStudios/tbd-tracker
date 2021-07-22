@@ -5,7 +5,7 @@ import { Logger } from '@nestjs/common';
 import { UpdateSubGroupRuleDTO } from './dtos/UpdateSubGroupRuleDTO';
 import { CreateSubGroupRuleDTO } from './dtos/CreateSubGroupRuleDTO';
 
-@WebSocketGateway(8180, { namespace: 'subgrouprule' })
+@WebSocketGateway(8180, { namespace: 'subgrouprule', transports: ['websocket'] })
 export class SubGroupRuleGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   constructor(private subgroupRuleService: SubGroupRuleService) {}
   afterInit(server: any) {}

@@ -10,7 +10,7 @@ import { SuggestSubgroupDTO } from './dto/SuggestSubgroupDTO';
 import { DownloadDTO } from './dto/DownloadDTO';
 import { SearchNyaaDTO } from './dto/SearchNyaaDTO';
 
-@WebSocketGateway(8180, { namespace: 'nyaa' })
+@WebSocketGateway(8180, { namespace: 'nyaa', transports: ['websocket'] })
 export class NyaaGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   constructor(private nyaaService: NyaaService, private socketService: SocketService, private seriesService: SeriesService) {}
   afterInit(server: any) {

@@ -99,7 +99,7 @@ export class SeriesService {
 
     await this.seriesRepository.update({ id: updateModel.id }, updateModel);
 
-    return this.seriesRepository.findOne({ id: updateModel.id }, { relations: ['season', 'subgroups', 'subgroups.rules'] });
+    return this.seriesRepository.findOne({ id: updateModel.id });
   }
 
   public async toggleWatchStatus(id: number) {

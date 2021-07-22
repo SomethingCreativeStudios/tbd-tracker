@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { SubGroup } from './models';
 import { SubGroupRepository } from './sub-group.repository';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -6,6 +6,7 @@ import { SubGroupRuleService } from '../sub-group-rule/sub-group-rule.service';
 import { uniq } from 'ramda';
 import { CreateSubGroupDTO } from './dtos/CreateSubGroupDTO';
 import { UpdateSubGroupDTO } from './dtos/UpdateSubGroupDTO';
+import { SeriesService } from '../series/series.service';
 
 @Injectable()
 export class SubGroupService {
@@ -13,11 +14,14 @@ export class SubGroupService {
     @InjectRepository(SubGroup)
     private readonly subgroupRepository: SubGroupRepository,
     private readonly subgroupRuleService: SubGroupRuleService,
+
+    @Inject(forwardRef(() => SeriesService))
+    private readonly seriesService: SeriesService,
   ) {}
 
   public async create(subGroup: CreateSubGroupDTO) {
-    
-    const subgroups = await this.subgroupRepository.save({ name: subGroup.name, preferedResultion: subGroup.preferedResultion });
+    const series = await this.seriesService.findById(subGroup.seriesId);
+    return this.subgroupRepository.save({ series, name: subGroup.name, preferedResultion: subGroup.preferedResultion });
   }
 
   public async createAll(subGroups: CreateSubGroupDTO[]) {

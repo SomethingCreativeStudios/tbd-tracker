@@ -8,7 +8,7 @@ import { CreateSettingDTO } from './dto/CreateSettingDTO';
 import { FindSettingDTO } from './dto/FindSettingDTO';
 import { UpdateSettingDTO } from './dto/UpdateSettingDTO';
 
-@WebSocketGateway(8180, { namespace: 'settings' })
+@WebSocketGateway(8180, { namespace: 'settings', transports: ['websocket'] })
 export class SettingsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   constructor(private settingService: SettingsService, private socketService: SocketService) {}
   afterInit(server: Server) {

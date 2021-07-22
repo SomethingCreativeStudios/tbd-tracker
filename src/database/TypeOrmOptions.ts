@@ -21,7 +21,7 @@ export class TypeOrmOptions implements TypeOrmOptionsFactory {
       logging: false,
       migrationsRun: true,
       entities: getMetadataArgsStorage().tables.map((tbl) => tbl.target),
-      migrations: [`./dist/migrations/*{.ts,.js}`],
+      migrations: [`./dist/src/migrations/*{.ts,.js}`],
       cli: {
         migrationsDir: `src/migrations`,
       },

@@ -2,14 +2,10 @@ import { WebSocketGateway, OnGatewayInit, OnGatewayConnection, OnGatewayDisconne
 import { Logger, Inject, forwardRef } from '@nestjs/common';
 import { Server } from 'socket.io';
 import { SubGroupService } from './sub-group.service';
-import { SubGroup } from './models';
-import { DeepPartial } from 'typeorm';
-import { mergeDeepRight } from 'ramda';
-import { SeriesService } from '../series/series.service';
 import { CreateSubGroupDTO } from './dtos/CreateSubGroupDTO';
 import { UpdateSubGroupDTO } from './dtos/UpdateSubGroupDTO';
 
-@WebSocketGateway(8180, { namespace: 'subgroup' })
+@WebSocketGateway(8180, { namespace: 'subgroup', transports: ['websocket'] })
 export class SubGroupGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   constructor(private subgroupService: SubGroupService) {}
   afterInit(server: any) {}

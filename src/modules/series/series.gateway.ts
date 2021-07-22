@@ -2,10 +2,6 @@ import { WebSocketGateway, OnGatewayInit, OnGatewayConnection, OnGatewayDisconne
 import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { SeriesService } from './series.service';
-import { SeasonName } from '../season/models';
-import { DeepPartial } from 'typeorm';
-import { Series } from './models';
-import { mergeDeepRight } from 'ramda';
 import { SocketService } from '../socket/socket.service';
 import { AnimeFolderService } from '../anime-folder/anime-folder.service';
 import { SearchBySeasonDTO } from './dtos/SearchBySeasonDTO';
@@ -14,7 +10,7 @@ import { CreateFromMalDTO } from './dtos/CreateFromMalDTO';
 import { UpdateSeriesDTO } from './dtos/UpdateSeriesDTO';
 import { MalSearchDTO } from './dtos/MalSearchDTO';
 
-@WebSocketGateway(8180, { namespace: 'series' })
+@WebSocketGateway(8180, { namespace: 'series', transports: ['websocket'] })
 export class SeriesGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   constructor(private seriesService: SeriesService, private folderService: AnimeFolderService, private socketService: SocketService) {}
   afterInit(server: Server) {
