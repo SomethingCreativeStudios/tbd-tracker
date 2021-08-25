@@ -67,8 +67,9 @@ export class SeasonService {
     const newSeason = await this.find(seasonName, year);
     const season = await SeasonSearch.anime(year, seasonName);
     const hasEps = (eps = 0) => eps === 0 || eps > 4;
+    const currentFolder = await this.folderService.getCurrentFolder();
 
-    const promisedSeries = await Promise.all(season.anime.map((anime) => createFromMALSeason(anime, options)));
+    const promisedSeries = await Promise.all(season.anime.map((anime) => createFromMALSeason(anime, currentFolder, options)));
 
     newSeason.series = promisedSeries.filter((show) => !show.continuing && hasEps(show.numberOfEpisodes) && differenceInCalendarYears(new Date(), show.airingData) < 1);
 

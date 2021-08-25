@@ -55,7 +55,8 @@ export class SeriesService {
 
   public async syncImage(id: number) {
     const series = await this.seriesRepository.findOne({ id });
-    const malSeries = await createFromMAL(await Anime.byId(series.malId), { autoMatchFolders: false });
+    const currentFolder = await this.animeFolderService.getCurrentFolder();
+    const malSeries = await createFromMAL(await Anime.byId(series.malId), currentFolder, { autoMatchFolders: false });
 
     await this.seriesRepository.update({ id }, { imageUrl: malSeries.imageUrl });
 
@@ -64,7 +65,8 @@ export class SeriesService {
 
   public async syncWithMal(id: number) {
     const series = await this.seriesRepository.findOne({ id });
-    const malSeries = await createFromMAL(await Anime.byId(series.malId), { autoMatchFolders: false });
+    const currentFolder = await this.animeFolderService.getCurrentFolder();
+    const malSeries = await createFromMAL(await Anime.byId(series.malId), currentFolder, { autoMatchFolders: false });
 
     await this.seriesRepository.update({ id }, { airingData: malSeries.airingData, description: malSeries.description, numberOfEpisodes: malSeries.numberOfEpisodes, score: malSeries.score });
 
@@ -79,7 +81,8 @@ export class SeriesService {
   }
 
   public async createFromMALId(createModel: CreateFromMalDTO) {
-    const series = await createFromMAL(await Anime.byId(createModel.malId), { autoMatchFolders: createModel.autoMatchFolders ?? true });
+    const currentFolder = await this.animeFolderService.getCurrentFolder();
+    const series = await createFromMAL(await Anime.byId(createModel.malId), currentFolder, { autoMatchFolders: createModel.autoMatchFolders ?? true });
 
     const defaultSeason = createModel.seasonName || (await this.settingsService.findByKey('currentSeason')).value;
     const defaultYear = createModel.seasonYear || (await this.settingsService.findByKey('currentYear')).value;
@@ -169,15 +172,17 @@ export class SeriesService {
 
   public async searchByMALSeason({ season, year }: MalSearchDTO) {
     const foundSeason = await Season.anime(year, season);
+    const currentFolder = await this.animeFolderService.getCurrentFolder();
 
     const hasEps = (eps = 0) => eps === 0 || eps > 4;
 
-    const promisedSeries = await Promise.all(foundSeason.anime.map((anime) => createFromMALSeason(anime, { autoMatchFolders: false })));
+    const promisedSeries = await Promise.all(foundSeason.anime.map((anime) => createFromMALSeason(anime, currentFolder, { autoMatchFolders: false })));
 
     return promisedSeries.filter((show) => !show.continuing && hasEps(show.numberOfEpisodes) && differenceInCalendarYears(new Date(), show.airingData) < 1);
   }
 
   public async findFromMAL(name: string) {
-    return findFromMAL(name);
+    const currentFolder = await this.animeFolderService.getCurrentFolder();
+    return findFromMAL(name, currentFolder);
   }
 }

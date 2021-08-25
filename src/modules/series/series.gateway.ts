@@ -72,7 +72,9 @@ export class SeriesGateway implements OnGatewayInit, OnGatewayConnection, OnGate
 
   @SubscribeMessage('folder-names')
   async fetchFolderNames() {
-    return this.folderService.getFolders();
+    const folders = await this.folderService.getFolders();
+    console.log(folders);
+    return folders;
   }
 
   @SubscribeMessage('sync-mal')

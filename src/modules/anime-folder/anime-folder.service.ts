@@ -35,10 +35,10 @@ export class AnimeFolderService {
     const currentPath = await this.getCurrentFolder();
 
     ensureDirSync(currentPath);
-
+    console.log(currentPath, readdirSync(currentPath, { withFileTypes: true }));
     return readdirSync(currentPath, { withFileTypes: true })
-      .filter(dirent => dirent.isDirectory())
-      .map(dirent => dirent.name);
+      .filter((dirent) => dirent.isDirectory())
+      .map((dirent) => dirent.name);
   }
 
   public async createFolder(seriesId: number, folderName?: string) {
@@ -63,7 +63,7 @@ export class AnimeFolderService {
   }
 
   public matchFolder(showName: string, folderNames: string[], folderRules: AnimeFolderRule[]) {
-    const foundRule = folderRules.find(rule => this.matchFolderRule(showName.toLowerCase(), rule));
+    const foundRule = folderRules.find((rule) => this.matchFolderRule(showName.toLowerCase(), rule));
 
     // Found rule, escape now!
     if (foundRule) {
