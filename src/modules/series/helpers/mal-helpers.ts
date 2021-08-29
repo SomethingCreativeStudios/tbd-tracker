@@ -44,6 +44,7 @@ export async function createFromMALSeason(animeModel: AnimeSeason, currentFolder
   series.continuing = animeModel.continuing;
   series.tags = [];
   series.watchStatus = WatchingStatus.THREE_RULE;
+  series.malId = animeModel.mal_id;
 
   if (options.autoMatchFolders) {
     series.folderPath = autoMakeFolder(series.name, currentFolder);

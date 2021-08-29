@@ -68,6 +68,7 @@ export class Series {
 
   continuing: boolean = false;
 
+  @Column({ type: 'decimal', default: 0, nullable: true, name: 'mal_id' })
   malId: number;
 
   @ManyToOne((type) => Season, (season) => season.series)

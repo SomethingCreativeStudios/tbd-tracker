@@ -68,7 +68,10 @@ export class SeriesService {
     const currentFolder = await this.animeFolderService.getCurrentFolder();
     const malSeries = await createFromMAL(await Anime.byId(series.malId), currentFolder, { autoMatchFolders: false });
 
-    await this.seriesRepository.update({ id }, { airingData: malSeries.airingData, description: malSeries.description, numberOfEpisodes: malSeries.numberOfEpisodes, score: malSeries.score });
+    await this.seriesRepository.update(
+      { id },
+      { imageUrl: malSeries.imageUrl, airingData: malSeries.airingData, description: malSeries.description, numberOfEpisodes: malSeries.numberOfEpisodes, score: malSeries.score },
+    );
 
     return this.seriesRepository.findOne({ id });
   }

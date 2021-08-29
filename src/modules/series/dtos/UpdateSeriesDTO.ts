@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsArray, IsDate, IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
+import { NyaaItem } from '~/modules/nyaa/models/nyaaItem';
 import { WatchingStatus } from '../models';
 
 export class UpdateSeriesDTO {
@@ -68,4 +69,9 @@ export class UpdateSeriesDTO {
   @IsOptional()
   @IsString()
   folderPath?: string;
+
+  @IsOptional()
+  @IsArray()
+  @Type(() => NyaaItem)
+  showQueue?: NyaaItem[];
 }
