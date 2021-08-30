@@ -36,6 +36,11 @@ export class SeriesGateway implements OnGatewayInit, OnGatewayConnection, OnGate
     return this.seriesService.update(updateModel);
   }
 
+  @SubscribeMessage('get-by-it')
+  async fetchById(@MessageBody() id: number) {
+    return this.seriesService.findById(id);
+  }
+
   @SubscribeMessage('remove')
   async removeSeries(@MessageBody() id: number) {
     return this.seriesService.deleteById(id);

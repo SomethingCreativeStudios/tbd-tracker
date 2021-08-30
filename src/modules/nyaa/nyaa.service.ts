@@ -246,7 +246,7 @@ export class NyaaService {
     series.showQueue = validItems;
     series.downloaded = series.downloaded > currentCount ? series.downloaded : currentCount;
 
-    await this.seriesService.update({ id: series.id, downloaded: series.downloaded });
+    await this.seriesService.update({ id: series.id, downloaded: series.downloaded, showQueue: series.showQueue});
 
     const queueUpdated = existingQueue.every((item) => validItems.includes(item));
     const didUpdateOccur = !queueUpdated || existingQueue.length !== validItems.length;
