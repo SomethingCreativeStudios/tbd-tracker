@@ -46,6 +46,10 @@ export class SubGroupRuleService {
     return (await this.find(subGroupRule))[0];
   }
 
+  public async findBySubgroup(subgroupId: number) {
+    return this.subgroupRuleRepository.createQueryBuilder().where('"subGroupId" = :id', { id: subgroupId }).getMany();
+  }
+
   public async findAll() {
     return this.subgroupRuleRepository.find();
   }

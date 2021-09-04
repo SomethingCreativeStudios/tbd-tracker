@@ -26,6 +26,11 @@ export class SubGroupRuleGateway implements OnGatewayInit, OnGatewayConnection, 
     return this.subgroupRuleService.createMany(createModel);
   }
 
+  @SubscribeMessage('find-by-subgroup')
+  async findBySubgroup(@MessageBody() subgroupId: number) {
+    return this.subgroupRuleService.findBySubgroup(subgroupId);
+  }
+
   @SubscribeMessage('delete')
   async deleteRule(@MessageBody() ruleId: number) {
     return this.subgroupRuleService.delete(ruleId);
