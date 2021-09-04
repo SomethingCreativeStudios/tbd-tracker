@@ -48,6 +48,10 @@ export class SubGroupService {
     return this.subgroupRepository.delete({ id: deleteId });
   }
 
+  public async findBySeries(seriesId: number) {
+    return this.subgroupRepository.createQueryBuilder().where('"seriesId" = :id', { id: seriesId }).getMany();
+  }
+
   public async findNames() {
     try {
       const results = await this.subgroupRepository.createQueryBuilder().select('name').getRawMany();

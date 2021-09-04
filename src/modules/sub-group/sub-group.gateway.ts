@@ -26,9 +26,14 @@ export class SubGroupGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     return this.subgroupService.delete(id);
   }
 
+  @SubscribeMessage('find-by-series')
+  async findBySeries(@MessageBody() id: number) {
+    return this.subgroupService.findBySeries(id);
+  }
+
   @SubscribeMessage('update')
   async updateSubgroup(@MessageBody() updateModel: UpdateSubGroupDTO) {
-    this.subgroupService.update(updateModel);
+    return this.subgroupService.update(updateModel);
   }
 
   @SubscribeMessage('subgroup-names')
