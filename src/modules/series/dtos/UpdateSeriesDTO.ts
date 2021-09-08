@@ -29,6 +29,10 @@ export class UpdateSeriesDTO {
 
   @IsOptional()
   @IsNumber()
+  malId?: number;
+
+  @IsOptional()
+  @IsNumber()
   offset?: number;
 
   @IsOptional()
