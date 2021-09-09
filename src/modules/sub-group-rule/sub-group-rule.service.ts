@@ -23,7 +23,7 @@ export class SubGroupRuleService {
 
     const newRules = createDto.rules.map((rule) => ({ isPositive: rule.isPositive, ruleType: rule.ruleType, text: rule.text, subGroup: foundSubgroup }));
 
-    return Promise.all(newRules.map((rule) => this.subgroupRuleRepository.create(rule)));
+    return Promise.all(newRules.map((rule) => this.subgroupRuleRepository.save(rule)));
   }
 
   public async update(updateDto: UpdateSubGroupRuleDTO) {
