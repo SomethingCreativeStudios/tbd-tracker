@@ -19,6 +19,7 @@ import { CreateBySeasonDTO } from './dtos/CreateBySeasonDTO';
 import { SearchBySeasonDTO } from './dtos/SearchBySeasonDTO';
 import { Seasons } from 'jikants/dist/src/interfaces/season/Season';
 import { MalSearchDTO } from './dtos/MalSearchDTO';
+import { MigrateSeriesDTO } from './dtos/MigrateSeriesDTO';
 
 const config = {
   client: {
@@ -187,5 +188,19 @@ export class SeriesService {
   public async findFromMAL(name: string) {
     const currentFolder = await this.animeFolderService.getCurrentFolder();
     return findFromMAL(name, currentFolder);
+  }
+
+  public async migrateSeries({ id, season, year }: MigrateSeriesDTO) {
+    const foundSeries = await this.findById(id);
+    const foundSeason = await this.seasonService.find(season, year);
+    const currentSeason = foundSeries.season;
+
+    foundSeries.season = foundSeason;
+
+    await this.seriesRepository.save(foundSeries);
+
+    await this.animeFolderService.migrateSeries(foundSeries.folderPath, currentSeason.name, currentSeason.year, foundSeason.name, foundSeason.year);
+
+    return true;
   }
 }

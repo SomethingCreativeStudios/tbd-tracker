@@ -86,8 +86,8 @@ describe('Items', () => {
   it('Replace Name - Nothing', () => {
     const series = new Series();
 
-    const hundred = service.findFileNameBySeries(series, '[SubsPlease] 100-man no Inochi no Ue ni Ore wa Tatte Iru - 14 (720p) [6B61BF6E].mkv');
-    const hero = service.findFileNameBySeries(series, '[Erai-raws] Boku no Hero Academia 5th Season - 16 [720p][Multiple Subtitle].mkv');
+    const hundred = service.findFileNameBySeries(series.showName, series.offset, '[SubsPlease] 100-man no Inochi no Ue ni Ore wa Tatte Iru - 14 (720p) [6B61BF6E].mkv');
+    const hero = service.findFileNameBySeries(series.showName, series.offset, '[Erai-raws] Boku no Hero Academia 5th Season - 16 [720p][Multiple Subtitle].mkv');
 
     expect(hundred).toBe('[SubsPlease] 100-man no Inochi no Ue ni Ore wa Tatte Iru - 14 (720p) [6B61BF6E].mkv');
     expect(hero).toBe('[Erai-raws] Boku no Hero Academia 5th Season - 16 [720p][Multiple Subtitle].mkv');
@@ -97,8 +97,8 @@ describe('Items', () => {
     const series = new Series();
     series.offset = 10;
 
-    const hundred = service.findFileNameBySeries(series, '[SubsPlease] 100-man no Inochi no Ue ni Ore wa Tatte Iru - 14 (720p) [6B61BF6E].mkv');
-    const hero = service.findFileNameBySeries(series, '[Erai-raws] Boku no Hero Academia 5th Season - 16 [720p][Multiple Subtitle].mkv');
+    const hundred = service.findFileNameBySeries(series.showName, series.offset, '[SubsPlease] 100-man no Inochi no Ue ni Ore wa Tatte Iru - 14 (720p) [6B61BF6E].mkv');
+    const hero = service.findFileNameBySeries(series.showName, series.offset, '[Erai-raws] Boku no Hero Academia 5th Season - 16 [720p][Multiple Subtitle].mkv');
 
     expect(hundred).toBe('[SubsPlease] 100-man no Inochi no Ue ni Ore wa Tatte Iru - 24 (720p) [6B61BF6E].mkv');
     expect(hero).toBe('[Erai-raws] Boku no Hero Academia 5th Season - 26 [720p][Multiple Subtitle].mkv');
@@ -108,8 +108,8 @@ describe('Items', () => {
     const series = new Series();
     series.offset = 10;
 
-    const hundred = service.findFileNameBySeries({ ...series, showName: 'Standing on hundred lives' }, '[SubsPlease] 100-man no Inochi no Ue ni Ore wa Tatte Iru - 14 (720p) [6B61BF6E].mkv');
-    const hero = service.findFileNameBySeries({ ...series, showName: 'Hero Academy' }, '[Erai-raws] Boku no Hero Academia 5th Season - 16 [720p][Multiple Subtitle].mkv');
+    const hundred = service.findFileNameBySeries('Standing on hundred lives', 10, '[SubsPlease] 100-man no Inochi no Ue ni Ore wa Tatte Iru - 14 (720p) [6B61BF6E].mkv');
+    const hero = service.findFileNameBySeries('Hero Academy', 10, '[Erai-raws] Boku no Hero Academia 5th Season - 16 [720p][Multiple Subtitle].mkv');
 
     expect(hundred).toBe('[SubsPlease] Standing on hundred lives - 24.mkv');
     expect(hero).toBe('[Erai-raws] Hero Academy - 26.mkv');

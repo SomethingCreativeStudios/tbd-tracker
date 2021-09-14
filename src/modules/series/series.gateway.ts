@@ -9,6 +9,7 @@ import { CreateBySeasonDTO } from './dtos/CreateBySeasonDTO';
 import { CreateFromMalDTO } from './dtos/CreateFromMalDTO';
 import { UpdateSeriesDTO } from './dtos/UpdateSeriesDTO';
 import { MalSearchDTO } from './dtos/MalSearchDTO';
+import { MigrateSeriesDTO } from './dtos/MigrateSeriesDTO';
 
 @WebSocketGateway(8180, { namespace: 'series', transports: ['websocket'] })
 export class SeriesGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
@@ -58,6 +59,11 @@ export class SeriesGateway implements OnGatewayInit, OnGatewayConnection, OnGate
   @SubscribeMessage('create-season')
   async createSeason(@MessageBody() createModel: CreateBySeasonDTO) {
     return this.seriesService.createFromSeason(createModel);
+  }
+
+  @SubscribeMessage('migrate-series')
+  async migrateSeries(@MessageBody() migrateModel: MigrateSeriesDTO) {
+    return this.seriesService.migrateSeries(migrateModel);
   }
 
   @SubscribeMessage('mal/search-name')

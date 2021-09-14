@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { readdirSync } from 'fs-extra';
+import { readdirSync, rename } from 'fs-extra';
 import { clone, uniqWith } from 'ramda';
 import { Socket } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
@@ -27,7 +27,7 @@ export class NyaaService {
   private parser: Parser = new Parser();
   private client: WebTorrent.Instance;
   private activeTorrents: string[] = [];
-  private downloadingTorrents: { path: string; hash: string; name: string; url: string }[] = [];
+  private downloadingTorrents: { path: string; hash: string; name: string; url: string; fileName: string }[] = [];
   private queuedTorrents: { path: string; url: string; fileName: string }[] = [];
 
   constructor(
@@ -51,19 +51,19 @@ export class NyaaService {
     });
   }
 
-  public findFileNameBySeries(series: Series, currentName: string) {
-    if (!series.showName && !series.offset) {
+  public findFileNameBySeries(showName: string, offset: number, currentName: string) {
+    if (!showName && !offset) {
       return currentName;
     }
 
-    const epNumber = this.findCount(currentName) + (series.offset || 0);
+    const epNumber = this.findCount(currentName) + (offset || 0);
     const subgroup =
       currentName
         .match(/\[(.*?)\]/g)?.[0]
         ?.replace('[', '')
         .replace(']', '') ?? '';
 
-    return series.showName ? `[${subgroup}] ${series.showName} - ${epNumber}.mkv` : currentName.replace(`- ${this.findCount(currentName)}`, `- ${epNumber}`);
+    return showName ? `[${subgroup}] ${showName} - ${epNumber}.mkv` : currentName.replace(`- ${this.findCount(currentName)}`, `- ${epNumber}`);
   }
 
   public async searchItems(feed: NyaaFeed, searchTerm: string, onlyTrusted = false): Promise<NyaaItem[]> {
@@ -180,7 +180,7 @@ export class NyaaService {
         return;
       }
 
-      this.addTorrent(torrentName, downloadPath);
+      this.addTorrent(torrentName, downloadPath, fileName, false);
     } catch (ex) {
       console.error(ex);
     }
@@ -239,14 +239,14 @@ export class NyaaService {
     const uniqItems = this.uniqNyaaItems(items.concat(...altItems));
 
     const validItems = this.findValidItems(
-      (uniqItems || []).filter((item) => !downloadedEps.includes(item.episodeName)),
+      (uniqItems || []).filter((item) => !downloadedEps.includes(item.episodeName + series.offset)),
       series.subgroups,
     );
 
     series.showQueue = validItems;
     series.downloaded = series.downloaded > currentCount ? series.downloaded : currentCount;
 
-    await this.seriesService.update({ id: series.id, downloaded: series.downloaded, showQueue: series.showQueue});
+    await this.seriesService.update({ id: series.id, downloaded: series.downloaded, showQueue: series.showQueue });
 
     const queueUpdated = existingQueue.every((item) => validItems.includes(item));
     const didUpdateOccur = !queueUpdated || existingQueue.length !== validItems.length;
@@ -260,9 +260,9 @@ export class NyaaService {
     await this.waitFor(1000);
   }
 
-  private addTorrent(url: string, downloadPath: string, queued: boolean = false) {
+  private addTorrent(url: string, downloadPath: string, fileName: string, queued: boolean = false) {
     this.activeTorrents.push(url);
-    this.downloadingTorrents.push({ path: downloadPath, url, hash: '', name: downloadPath });
+    this.downloadingTorrents.push({ path: downloadPath, url, hash: '', name: downloadPath, fileName });
     this.client.add(url, { path: downloadPath, maxWebConns: 100 }, (torrent) => {
       console.log('Client is downloading:', torrent.infoHash, torrent.name);
       this.downloadingTorrents.forEach((tor) => (tor.url === url ? { ...tor, name: torrent.name, hash: torrent.infoHash } : tor));
@@ -270,17 +270,24 @@ export class NyaaService {
       this.socketService?.nyaaSocket?.emit('start-downloading', { hash: torrent.infoHash, value: { name: torrent.name, url, queued } });
       this.socketService?.nyaaSocket?.emit('metadata', { hash: torrent.infoHash, value: { name: torrent.name } });
 
-      torrent.on('done', () => {
+      torrent.on('done', async () => {
         console.log('torrent finished downloading');
         this.socketService?.nyaaSocket?.emit('downloaded', { hash: torrent.infoHash, value: true });
-        setTimeout(() => torrent.destroy(), 100);
-        this.downloadingTorrents.pop();
 
+        const foundTorrentIndex = this.downloadingTorrents.findIndex((item) => item.url === url);
+
+        if (fileName) {
+          rename(join(downloadPath, torrent.name), join(downloadPath, fileName));
+        }
+
+        this.downloadingTorrents = this.downloadingTorrents.slice(foundTorrentIndex);
+
+        setTimeout(() => torrent.destroy(), 100);
         const next = this.queuedTorrents.shift();
 
         if (next) {
           console.log('Adding new torrent', next.path);
-          this.addTorrent(next.url, next.path, true);
+          this.addTorrent(next.url, next.path, next.fileName, true);
         }
 
         clearInterval(interval);
@@ -320,7 +327,7 @@ export class NyaaService {
     const hash = uuidv4();
 
     this.activeTorrents.push(url);
-    this.downloadingTorrents.push({ path: downloadPath, url, hash, name: torrentName });
+    this.downloadingTorrents.push({ path: downloadPath, url, hash, name: torrentName, fileName: '' });
 
     console.log('Client is downloading:', hash, torrentName);
 
@@ -361,20 +368,20 @@ export class NyaaService {
     }, 1000);
   }
 
-  private async findHighestCount(folderName) {
+  private async findHighestCount(folderName, offset = 0) {
     const files = readdirSync(join(await this.folderService.getCurrentFolder(), folderName), { withFileTypes: true }).filter((item) => item.isFile());
 
     return files.reduce((acc, file) => {
-      const epNumber = this.findCount(file.name);
+      const epNumber = this.findCount(file.name) + offset;
 
       return acc < epNumber ? epNumber : acc;
     }, 0);
   }
 
-  private async findDownloadedEps(folderName) {
+  private async findDownloadedEps(folderName, offset = 0) {
     const files = readdirSync(join(await this.folderService.getCurrentFolder(), folderName), { withFileTypes: true }).filter((item) => item.isFile());
 
-    return files.map((file) => this.findCount(file.name));
+    return files.map((file) => this.findCount(file.name) + offset);
   }
 
   private findResolution(title: string) {

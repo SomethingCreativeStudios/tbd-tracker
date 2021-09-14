@@ -39,7 +39,8 @@ export class NyaaGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   async downloadShow(@MessageBody() { seriesId, url, name }: DownloadDTO) {
     const series = await this.seriesService.findById(seriesId);
 
-    const fileName = this.nyaaService.findFileNameBySeries(series, name);
+    const fileName = this.nyaaService.findFileNameBySeries(series.showName, series.offset, name);
+
     await this.nyaaService.downloadShow(url, resolve(process.env.BASE_FOLDER, String(series.season.year), series.season.name, series.folderPath), fileName);
   }
 
