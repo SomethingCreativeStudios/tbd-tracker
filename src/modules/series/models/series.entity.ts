@@ -39,7 +39,7 @@ export class Series {
   @Column()
   imageUrl: string;
 
-  @Column({ default: new Date(), type: 'date' })
+  @Column({ default: new Date(), type: 'timestamptz' })
   airingData: Date;
 
   @Column({ default: 0 })
@@ -84,4 +84,6 @@ export class Series {
     nullable: true,
   })
   showQueue: NyaaItem[];
+
+  nextAiringDate?: Date;
 }

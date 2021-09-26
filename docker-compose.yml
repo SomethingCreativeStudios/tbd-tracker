@@ -1,45 +1,11 @@
 version: '3'
 
 services:
-  gluetun:
-    image: qmcgaw/private-internet-access
-    container_name: vpn
-    cap_add:
-      - NET_ADMIN
-    network_mode: bridge
-    ports:
-      - 8888:8888/tcp # HTTP proxy
-      - 8388:8388/tcp # Shadowsocks
-      - 8388:8388/udp # Shadowsocks
-      - 8000:8000/tcp # Built-in HTTP control server
-      - 5432:5432
-      - 81:81
-      - 3000:3000
-      - 80:80
-
-    environment:
-      # More variables are available, see the readme table
-      - VPNSP=private internet access
-
-      # All VPN providers
-      - USER=p7083454
-
-      # All VPN providers
-      - PASSWORD=EtG4g7BBJx
-
-      # All VPN providers
-      - REGION=CA Toronto
-
-      - FIREWALL_OUTBOUND_SUBNETS=192.168.1.120/32
-    restart: always
-  tbd-ui:
-    network_mode: 'service:gluetun'
-    container_name: tbd-ui
-    image: ericlo417/tba-tracker-ui
   tbd-backend:
-    network_mode: 'service:gluetun'
-    image: ericlo417/tba-tracker-backend
+    image: ericlo417/tbd-tracker-backend
     container_name: tbd-backend
-    env_file: .env
+    env_file: .prod.env
+    ports: 
+      - 8180:8180
     volumes:
-      - ~/Users/Eric/Currently Airing:${BASE_FOLDER}
+      - ~/Users/Eric/Currently Airing:/temp/ca

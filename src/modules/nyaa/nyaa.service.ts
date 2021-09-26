@@ -17,7 +17,6 @@ import { SocketService } from '../socket/socket.service';
 import { SeriesService } from '../series/series.service';
 import { SeasonName } from '../season/models';
 import { Series } from '../series/models';
-import { ConfigService } from '../../config';
 import { SettingsService } from '../settings/settings.service';
 import { AnimeFolderService } from '../anime-folder/anime-folder.service';
 import { RuleType, SubGroupRule } from '../sub-group-rule/models';
@@ -26,6 +25,7 @@ import { RuleType, SubGroupRule } from '../sub-group-rule/models';
 export class NyaaService {
   private parser: Parser = new Parser();
   private client: WebTorrent.Instance;
+
   private activeTorrents: string[] = [];
   private downloadingTorrents: { path: string; hash: string; name: string; url: string; fileName: string }[] = [];
   private queuedTorrents: { path: string; url: string; fileName: string }[] = [];
@@ -193,6 +193,7 @@ export class NyaaService {
 
     const series = await this.seriesService.findBySeason(defaultSeason as SeasonName, Number(defaultYear));
     for await (const show of series) {
+      await this.seriesService.syncWithMal(show.id);
       await this.syncShow(show);
     }
   }
@@ -263,6 +264,7 @@ export class NyaaService {
   private addTorrent(url: string, downloadPath: string, fileName: string, queued: boolean = false) {
     this.activeTorrents.push(url);
     this.downloadingTorrents.push({ path: downloadPath, url, hash: '', name: downloadPath, fileName });
+
     this.client.add(url, { path: downloadPath, maxWebConns: 100 }, (torrent) => {
       console.log('Client is downloading:', torrent.infoHash, torrent.name);
       this.downloadingTorrents.forEach((tor) => (tor.url === url ? { ...tor, name: torrent.name, hash: torrent.infoHash } : tor));

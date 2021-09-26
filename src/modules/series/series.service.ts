@@ -1,6 +1,6 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { differenceInCalendarYears } from 'date-fns';
+import { differenceInCalendarYears, isAfter } from 'date-fns';
 import sanitize from 'sanitize-filename';
 
 import { Series, WatchingStatus } from './models';
@@ -20,6 +20,9 @@ import { SearchBySeasonDTO } from './dtos/SearchBySeasonDTO';
 import { Seasons } from 'jikants/dist/src/interfaces/season/Season';
 import { MalSearchDTO } from './dtos/MalSearchDTO';
 import { MigrateSeriesDTO } from './dtos/MigrateSeriesDTO';
+import { NyaaItem } from '../nyaa/models/nyaaItem';
+import { SubGroup } from '../sub-group/models';
+import { getClosestAiringDate } from '~/utlis/time-helpers';
 
 const config = {
   client: {
@@ -51,7 +54,12 @@ export class SeriesService {
   ) {}
 
   public async createFromSeason({ malIds, seasonName, seasonYear }: CreateBySeasonDTO) {
-    return Promise.all(malIds.map((id) => this.createFromMALId({ seasonName, seasonYear, malId: id })));
+    const things = [];
+    for await (const id of malIds) {
+      things.push(await this.createFromMALId({ seasonName, seasonYear, malId: id }));
+    }
+
+    return things;
   }
 
   public async syncImage(id: number) {
@@ -88,6 +96,7 @@ export class SeriesService {
     const currentFolder = await this.animeFolderService.getCurrentFolder();
     const series = await createFromMAL(await Anime.byId(createModel.malId), currentFolder, { autoMatchFolders: createModel.autoMatchFolders ?? true });
 
+    console.log(series);
     const defaultSeason = createModel.seasonName || (await this.settingsService.findByKey('currentSeason')).value;
     const defaultYear = createModel.seasonYear || (await this.settingsService.findByKey('currentYear')).value;
 
@@ -145,20 +154,24 @@ export class SeriesService {
   }
 
   public async findBySeason(name: string, year: number, sortBy: 'QUEUE' | 'NAME' | 'WATCH_STATUS' = 'QUEUE') {
-    const series = (await this.seasonService.find(name as SeasonName, year))?.series ?? [];
+    const series = ((await this.seasonService.find(name as SeasonName, year))?.series ?? []).map((show) => ({ ...show, nextAiringDate: getClosestAiringDate(show.airingData) }));
+
+    const filteredQueue = (items: NyaaItem[], groups: SubGroup[]) =>
+      items.filter((item) => {
+        return groups.every((group) => group.preferedResultion === item.resolution);
+      });
 
     return series.sort((a, b) => {
-      if (sortBy === 'QUEUE') {
-        return b.showQueue.length - a.showQueue.length;
+      const aQueue = filteredQueue(a.showQueue, a.subgroups);
+      const bQueue = filteredQueue(b.showQueue, b.subgroups);
+
+      if (aQueue.length === bQueue.length) {
+        if (isAfter(a.nextAiringDate, b.nextAiringDate)) return 1;
+        if (!isAfter(a.nextAiringDate, b.nextAiringDate)) return -1;
       }
 
-      if (sortBy === 'NAME') {
-        return a.name.localeCompare(b.name);
-      }
-
-      if (sortBy === 'WATCH_STATUS') {
-        return a.watchStatus.localeCompare(b.watchStatus);
-      }
+      if (aQueue.length > bQueue.length) return -1;
+      if (aQueue.length < bQueue.length) return 1;
     });
   }
 
@@ -167,11 +180,15 @@ export class SeriesService {
     const currentYear = await this.settingsService.findByKey('currentYear');
     const currentSeason = await this.settingsService.findByKey('currentSeason');
 
-    return series.filter((found) => found.season.name === overrideSeason || (currentSeason.value && found.season.year === (overrideYear || Number(currentYear.value))));
+    return series
+      .filter((found) => found.season.name === overrideSeason || (currentSeason.value && found.season.year === (overrideYear || Number(currentYear.value))))
+      .map((series) => ({ ...series, nextAiringDate: getClosestAiringDate(series.airingData) }));
   }
 
   public async findById(seriesId: number) {
-    return this.seriesRepository.findOne({ relations: ['season', 'subgroups', 'subgroups.rules'], where: { id: seriesId } });
+    const series = await this.seriesRepository.findOne({ relations: ['season', 'subgroups', 'subgroups.rules'], where: { id: seriesId } });
+
+    return { ...series, nextAiringDate: getClosestAiringDate(series.airingData) };
   }
 
   public async searchByMALSeason({ season, year }: MalSearchDTO) {

@@ -4,7 +4,8 @@ export class SeriesMal1626580911230 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
 
     // @ts-ignore
-    await queryRunner.addColumn('series', { name: 'mal_id', type: 'integer', isNullable: true, default: 0 });
+    //await queryRunner.addColumn('series', { name: 'mal_id', type: 'integer', isNullable: true, default: 0 });
+    await queryRunner.query('ALTER TABLE "series" ADD "mal_id" integer DEFAULT 0');
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

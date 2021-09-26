@@ -16,5 +16,8 @@
       "~/*": ["src/*"]
     }
   },
-  "exclude": ["node_modules", "dist", "debug-dist"]
+  "watchOptions": {
+    "excludeDirectories": ["test-folder"]
+  },
+  "exclude": ["node_modules", "dist", "debug-dist", "test-folder"]
 }
