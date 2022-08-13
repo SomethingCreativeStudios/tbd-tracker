@@ -39,9 +39,10 @@ export class NyaaGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   async downloadShow(@MessageBody() { seriesId, url, name }: DownloadDTO) {
     const series = await this.seriesService.findById(seriesId);
 
-    const fileName = this.nyaaService.findFileNameBySeries(series.showName, series.offset, name);
+    const overrideName = this.nyaaService.findOverrideName(series.showName, series.offset, name);
+    const downloadName = overrideName === name ? '' : overrideName;
 
-    await this.nyaaService.downloadShow(url, resolve(process.env.BASE_FOLDER, String(series.season.year), series.season.name, series.folderPath), fileName);
+    await this.nyaaService.downloadShow(url, resolve(process.env.BASE_FOLDER, String(series.season.year), series.season.name, series.folderPath), downloadName, name);
   }
 
   @SubscribeMessage('test-download')

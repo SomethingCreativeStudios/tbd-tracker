@@ -51,7 +51,7 @@ export class NyaaService {
     });
   }
 
-  public findFileNameBySeries(showName: string, offset: number, currentName: string) {
+  public findOverrideName(showName: string, offset: number, currentName: string) {
     if (!showName && !offset) {
       return currentName;
     }
@@ -162,6 +162,7 @@ export class NyaaService {
     torrentName: string = 'https://nyaa.si/download/1284378.torrent',
     downloadPath: string,
     fileName: string,
+    queuedName?: string
   ): Promise<{ error?: string; name: string; files: WebTorrent.TorrentFile[] }> {
     try {
       console.log('Getting', torrentName, downloadPath);
@@ -173,10 +174,10 @@ export class NyaaService {
 
       console.log('Torrents downloading', this.downloadingTorrents.length);
       if (this.downloadingTorrents.length >= 4) {
-        console.log('Queued', fileName);
-        this.queuedTorrents.push({ fileName, path: downloadPath, url: torrentName });
+        console.log('Queued', fileName || queuedName);
+        this.queuedTorrents.push({ fileName: fileName || queuedName, path: downloadPath, url: torrentName });
 
-        this.socketService.nyaaSocket.emit('torrent-queued', { fileName, url: torrentName });
+        this.socketService.nyaaSocket.emit('torrent-queued', { fileName: fileName || queuedName, url: torrentName });
         return;
       }
 
@@ -266,15 +267,16 @@ export class NyaaService {
     this.downloadingTorrents.push({ path: downloadPath, url, hash: '', name: downloadPath, fileName });
 
     this.client.add(url, { path: downloadPath, maxWebConns: 100 }, (torrent) => {
-      console.log('Client is downloading:', torrent.infoHash, torrent.name);
-      this.downloadingTorrents.forEach((tor) => (tor.url === url ? { ...tor, name: torrent.name, hash: torrent.infoHash } : tor));
+      const realName =  fileName || torrent.name;
+      console.log('Client is downloading:', torrent.infoHash,  realName);
+      this.downloadingTorrents.forEach((tor) => (tor.url === url ? { ...tor, name:realName, hash: torrent.infoHash } : tor));
 
-      this.socketService?.nyaaSocket?.emit('start-downloading', { hash: torrent.infoHash, value: { name: torrent.name, url, queued } });
-      this.socketService?.nyaaSocket?.emit('metadata', { hash: torrent.infoHash, value: { name: torrent.name } });
+      this.socketService?.nyaaSocket?.emit('start-downloading', { hash: torrent.infoHash, value: { name: realName, url, queued } });
+      this.socketService?.nyaaSocket?.emit('metadata', { hash: torrent.infoHash, value: { name: realName } });
 
       torrent.on('done', async () => {
-        console.log('torrent finished downloading');
-        this.socketService?.nyaaSocket?.emit('downloaded', { hash: torrent.infoHash, value: true });
+        console.log('torrent finished downloading', torrent.infoHash,realName);
+        this.socketService?.nyaaSocket?.emit('downloaded', { hash: torrent.infoHash, name: realName, value: true });
 
         const foundTorrentIndex = this.downloadingTorrents.findIndex((item) => item.url === url);
 
@@ -296,15 +298,15 @@ export class NyaaService {
       });
 
       torrent.on('ready', function () {
-        console.log('torrent metadata', torrent.name);
-        this.socketService?.nyaaSocket?.emit('metadata', { hash: torrent.infoHash, value: { name: torrent.name } });
+        console.log('torrent metadata', realName);
+        this.socketService?.nyaaSocket?.emit('metadata', { hash: torrent.infoHash, value: { name: realName } });
       });
 
       const interval = setInterval(() => {
         this.socketService?.nyaaSocket?.emit('downloading', {
           hash: torrent.infoHash,
           value: {
-            name: torrent.name,
+            name: realName,
             justDownloaded: 100,
             totalDownloaded: torrent.downloaded,
             speed: torrent.downloadSpeed,
