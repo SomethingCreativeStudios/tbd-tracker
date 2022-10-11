@@ -5,11 +5,11 @@ import { Season } from './models/season.entity';
 import { SeasonService } from './season.service';
 import { SettingsModule } from '../settings/settings.module';
 import { SocketModule } from '../socket/socket.module';
-import { AnimeFolderModule } from '../anime-folder/anime-folder.module';
+import { MalModule } from '../mal';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Season]), forwardRef(() => SeriesModule), forwardRef(() => AnimeFolderModule), SettingsModule, SocketModule],
+  imports: [TypeOrmModule.forFeature([Season]), forwardRef(() => SeriesModule), SettingsModule, MalModule, SocketModule],
   providers: [SeasonService],
   exports: [SeasonService],
 })
-export class SeasonModule {}
+export class SeasonModule { }

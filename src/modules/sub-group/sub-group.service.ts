@@ -17,7 +17,7 @@ export class SubGroupService {
 
     @Inject(forwardRef(() => SeriesService))
     private readonly seriesService: SeriesService,
-  ) {}
+  ) { }
 
   public async create(subGroup: CreateSubGroupDTO) {
     const series = await this.seriesService.findById(subGroup.seriesId);
@@ -30,17 +30,17 @@ export class SubGroupService {
   }
 
   public async update(updateModel: UpdateSubGroupDTO) {
-    const foundGroup = await this.subgroupRepository.findOne({ id: updateModel.id });
+    const foundGroup = await this.subgroupRepository.findOne({ where: { id: updateModel.id } });
 
     return this.subgroupRepository.save({ ...foundGroup, ...updateModel });
   }
 
   public async findById(id: number) {
-    return this.subgroupRepository.findOne({ id });
+    return this.subgroupRepository.findOne({ where: { id } });
   }
 
   public async delete(deleteId: number) {
-    const foundGroup = await this.subgroupRepository.findOne({ id: deleteId }, { relations: ['rules'] });
+    const foundGroup = await this.subgroupRepository.findOne({ where: { id: deleteId }, relations: ['rules'] });
     const rules = (foundGroup.rules || []).map((rule) => this.subgroupRuleService.delete(rule.id));
 
     await Promise.all(rules);

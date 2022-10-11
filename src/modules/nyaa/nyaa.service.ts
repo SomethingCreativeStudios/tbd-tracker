@@ -27,8 +27,8 @@ export class NyaaService {
   private client: WebTorrent.Instance;
 
   private activeTorrents: string[] = [];
-  private downloadingTorrents: { path: string; hash: string; name: string; url: string; fileName: string }[] = [];
-  private queuedTorrents: { path: string; url: string; fileName: string }[] = [];
+  private downloadingTorrents: { path: string; hash: string; name: string; url: string; fileName: string, id: number }[] = [];
+  private queuedTorrents: { path: string; url: string; fileName: string, id: number }[] = [];
 
   constructor(
     private readonly subgroupService: SubGroupService,
@@ -141,18 +141,18 @@ export class NyaaService {
 
   public async testDownload() {
     const paths = [
-      { name: 'test1', url: '1111' },
-      { name: 'test2', url: '2222' },
-      { name: 'test3', url: '3333' },
+      { name: 'test1', url: '1111', id: 0 },
+      { name: 'test2', url: '2222', id: 1 },
+      { name: 'test3', url: '3333', id: 2 },
     ];
 
     for (let i = 0; i < paths.length; i++) {
-      const { name, url } = paths[i];
+      const { name, url, id } = paths[i];
       if (i <= 1) {
-        this.testAddTorrent(url, resolve(process.env.BASE_FOLDER, name), name);
+        this.testAddTorrent(url, resolve(process.env.BASE_FOLDER, name), name, id);
       } else {
         console.log('Queued', name);
-        this.queuedTorrents.push({ path: resolve(process.env.BASE_FOLDER, name), fileName: name, url });
+        this.queuedTorrents.push({ path: resolve(process.env.BASE_FOLDER, name), id: 0, fileName: name, url });
         this.socketService.nyaaSocket.emit('torrent-queued', { url, fileName: name });
       }
     }
@@ -162,6 +162,7 @@ export class NyaaService {
     torrentName: string = 'https://nyaa.si/download/1284378.torrent',
     downloadPath: string,
     fileName: string,
+    seriesId: number,
     queuedName?: string
   ): Promise<{ error?: string; name: string; files: WebTorrent.TorrentFile[] }> {
     try {
@@ -175,13 +176,13 @@ export class NyaaService {
       console.log('Torrents downloading', this.downloadingTorrents.length);
       if (this.downloadingTorrents.length >= 4) {
         console.log('Queued', fileName || queuedName);
-        this.queuedTorrents.push({ fileName: fileName || queuedName, path: downloadPath, url: torrentName });
+        this.queuedTorrents.push({ fileName: fileName || queuedName, path: downloadPath, url: torrentName, id: seriesId });
 
         this.socketService.nyaaSocket.emit('torrent-queued', { fileName: fileName || queuedName, url: torrentName });
         return;
       }
 
-      this.addTorrent(torrentName, downloadPath, fileName, false);
+      this.addTorrent(torrentName, downloadPath, fileName, seriesId, false);
     } catch (ex) {
       console.error(ex);
     }
@@ -262,20 +263,20 @@ export class NyaaService {
     await this.waitFor(1000);
   }
 
-  private addTorrent(url: string, downloadPath: string, fileName: string, queued: boolean = false) {
+  private addTorrent(url: string, downloadPath: string, fileName: string, seriesId: number, queued: boolean = false) {
     this.activeTorrents.push(url);
-    this.downloadingTorrents.push({ path: downloadPath, url, hash: '', name: downloadPath, fileName });
+    this.downloadingTorrents.push({ path: downloadPath, url, hash: '', name: downloadPath, id: seriesId, fileName });
 
     this.client.add(url, { path: downloadPath, maxWebConns: 100 }, (torrent) => {
-      const realName =  fileName || torrent.name;
-      console.log('Client is downloading:', torrent.infoHash,  realName);
-      this.downloadingTorrents.forEach((tor) => (tor.url === url ? { ...tor, name:realName, hash: torrent.infoHash } : tor));
+      const realName = fileName || torrent.name;
+      console.log('Client is downloading:', torrent.infoHash, realName);
+      this.downloadingTorrents.forEach((tor) => (tor.url === url ? { ...tor, name: realName, hash: torrent.infoHash } : tor));
 
       this.socketService?.nyaaSocket?.emit('start-downloading', { hash: torrent.infoHash, value: { name: realName, url, queued } });
       this.socketService?.nyaaSocket?.emit('metadata', { hash: torrent.infoHash, value: { name: realName } });
 
       torrent.on('done', async () => {
-        console.log('torrent finished downloading', torrent.infoHash,realName);
+        console.log('torrent finished downloading', torrent.infoHash, realName);
         this.socketService?.nyaaSocket?.emit('downloaded', { hash: torrent.infoHash, name: realName, value: true });
 
         const foundTorrentIndex = this.downloadingTorrents.findIndex((item) => item.url === url);
@@ -286,12 +287,15 @@ export class NyaaService {
 
         this.downloadingTorrents = this.downloadingTorrents.slice(foundTorrentIndex);
 
+        console.log('Syncing', seriesId);
+        this.syncById(seriesId);
+
         setTimeout(() => torrent.destroy(), 100);
         const next = this.queuedTorrents.shift();
 
         if (next) {
           console.log('Adding new torrent', next.path);
-          this.addTorrent(next.url, next.path, next.fileName, true);
+          this.addTorrent(next.url, next.path, next.fileName, next.id, true);
         }
 
         clearInterval(interval);
@@ -326,12 +330,12 @@ export class NyaaService {
     });
   }
 
-  private testAddTorrent(url: string, downloadPath: string, torrentName: string, queued: boolean = false) {
+  private testAddTorrent(url: string, downloadPath: string, torrentName: string, seriesId: number, queued: boolean = false) {
     const randomNumer = (min, max) => Math.floor(Math.random() * (max - min + 1) + min);
     const hash = uuidv4();
 
     this.activeTorrents.push(url);
-    this.downloadingTorrents.push({ path: downloadPath, url, hash, name: torrentName, fileName: '' });
+    this.downloadingTorrents.push({ path: downloadPath, url, hash, name: torrentName, fileName: '', id: seriesId });
 
     console.log('Client is downloading:', hash, torrentName);
 
@@ -366,7 +370,7 @@ export class NyaaService {
 
         if (next) {
           console.log('Adding new torrent', next.path);
-          this.testAddTorrent(next.url, next.path, next.fileName, true);
+          this.testAddTorrent(next.url, next.path, next.fileName, next.id, true);
         }
       }
     }, 1000);
@@ -419,7 +423,7 @@ export class NyaaService {
   public async waitFor(time: number) {
     return new Promise((resolve) => {
       setTimeout(() => {
-        resolve(() => {});
+        resolve(() => { });
       }, time);
     });
   }

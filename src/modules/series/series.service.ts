@@ -1,38 +1,26 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { differenceInCalendarYears, isAfter } from 'date-fns';
+import { isAfter } from 'date-fns';
 import sanitize from 'sanitize-filename';
+
+import { getClosestAiringDate } from '~/utlis/time-helpers';
 
 import { Series, WatchingStatus } from './models';
 import { SeriesRepository } from './series.repository';
-import { Anime, Season } from '../../jikan';
 import { SeasonService } from '../season/season.service';
 
 import { SubGroupService } from '../sub-group';
 import { SeasonName } from '../season/models';
 import { SettingsService } from '../settings/settings.service';
 import { AnimeFolderService } from '../anime-folder/anime-folder.service';
-import { createFromMAL, createFromMALSeason, findFromMAL } from './helpers/mal-helpers';
 import { CreateFromMalDTO } from './dtos/CreateFromMalDTO';
 import { UpdateSeriesDTO } from './dtos/UpdateSeriesDTO';
 import { CreateBySeasonDTO } from './dtos/CreateBySeasonDTO';
-import { SearchBySeasonDTO } from './dtos/SearchBySeasonDTO';
-import { Seasons } from 'jikants/dist/src/interfaces/season/Season';
 import { MalSearchDTO } from './dtos/MalSearchDTO';
 import { MigrateSeriesDTO } from './dtos/MigrateSeriesDTO';
 import { NyaaItem } from '../nyaa/models/nyaaItem';
 import { SubGroup } from '../sub-group/models';
-import { getClosestAiringDate } from '~/utlis/time-helpers';
-
-const config = {
-  client: {
-    id: '3d6658c97562e9a4d2c5234258b08878',
-    secret: '35b47ce2ed7e13430ec64fa4cba5d2caf7494f88ba13d1d30d5c4af5296c62e4',
-  },
-  auth: {
-    tokenHost: 'https://myanimelist.net/v1/oauth2/authorize',
-  },
-};
+import { MalService } from '../mal/mal.service';
 
 @Injectable()
 export class SeriesService {
@@ -51,21 +39,24 @@ export class SeriesService {
 
     @Inject(forwardRef(() => AnimeFolderService))
     private readonly animeFolderService: AnimeFolderService,
-  ) {}
+
+    private readonly malService: MalService,
+  ) { }
 
   public async createFromSeason({ malIds, seasonName, seasonYear }: CreateBySeasonDTO) {
-    const things = [];
+    const newSeries = [] as Series[];
     for await (const id of malIds) {
-      things.push(await this.createFromMALId({ seasonName, seasonYear, malId: id }));
+      const createdSeries = await this.createFromMALId({ seasonName, seasonYear, malId: id });
+      newSeries.push(createdSeries);
     }
 
-    return things;
+    console.log('created series', newSeries.length);
+    return newSeries;
   }
 
   public async syncImage(id: number) {
-    const series = await this.seriesRepository.findOne({ id });
-    const currentFolder = await this.animeFolderService.getCurrentFolder();
-    const malSeries = await createFromMAL(await Anime.byId(series.malId), currentFolder, { autoMatchFolders: false });
+    const series = await this.seriesRepository.findOne({ where: { id } });
+    const malSeries = await this.malService.findById(series.malId);
 
     await this.seriesRepository.update({ id }, { imageUrl: malSeries.imageUrl });
 
@@ -73,16 +64,15 @@ export class SeriesService {
   }
 
   public async syncWithMal(id: number) {
-    const series = await this.seriesRepository.findOne({ id });
-    const currentFolder = await this.animeFolderService.getCurrentFolder();
-    const malSeries = await createFromMAL(await Anime.byId(series.malId), currentFolder, { autoMatchFolders: false });
+    const series = await this.seriesRepository.findOne({ where: { id } });
+    const malSeries = await this.malService.findById(series.malId);
 
     await this.seriesRepository.update(
       { id },
       { imageUrl: malSeries.imageUrl, airingData: malSeries.airingData, description: malSeries.description, numberOfEpisodes: malSeries.numberOfEpisodes, score: malSeries.score },
     );
 
-    return this.seriesRepository.findOne({ id });
+    return this.seriesRepository.findOne({ where: { id } });
   }
 
   public async create(series: Series) {
@@ -93,10 +83,9 @@ export class SeriesService {
   }
 
   public async createFromMALId(createModel: CreateFromMalDTO) {
-    const currentFolder = await this.animeFolderService.getCurrentFolder();
-    const series = await createFromMAL(await Anime.byId(createModel.malId), currentFolder, { autoMatchFolders: createModel.autoMatchFolders ?? true });
+    const series = await this.malService.findById(createModel.malId, createModel.autoMatchFolders ?? true);
 
-    console.log(series);
+
     const defaultSeason = createModel.seasonName || (await this.settingsService.findByKey('currentSeason')).value;
     const defaultYear = createModel.seasonYear || (await this.settingsService.findByKey('currentYear')).value;
 
@@ -115,7 +104,7 @@ export class SeriesService {
 
     await this.seriesRepository.update({ id: updateModel.id }, updateModel);
 
-    return this.seriesRepository.findOne({ id: updateModel.id });
+    return this.seriesRepository.findOne({ where: { id: updateModel.id } });
   }
 
   public async toggleWatchStatus(id: number) {
@@ -153,7 +142,7 @@ export class SeriesService {
     return this.seriesRepository.delete(series.id);
   }
 
-  public async findBySeason(name: string, year: number, sortBy: 'QUEUE' | 'NAME' | 'WATCH_STATUS' = 'QUEUE') {
+  public async findBySeason(name: string, year: number, _sortBy: 'QUEUE' | 'NAME' | 'WATCH_STATUS' = 'QUEUE') {
     const series = ((await this.seasonService.find(name as SeasonName, year))?.series ?? []).map((show) => ({ ...show, nextAiringDate: getClosestAiringDate(show.airingData) }));
 
     const filteredQueue = (items: NyaaItem[], groups: SubGroup[]) =>
@@ -192,19 +181,11 @@ export class SeriesService {
   }
 
   public async searchByMALSeason({ season, year }: MalSearchDTO) {
-    const foundSeason = await Season.anime(year, season);
-    const currentFolder = await this.animeFolderService.getCurrentFolder();
-
-    const hasEps = (eps = 0) => eps === 0 || eps > 4;
-
-    const promisedSeries = await Promise.all(foundSeason.anime.map((anime) => createFromMALSeason(anime, currentFolder, { autoMatchFolders: false })));
-
-    return promisedSeries.filter((show) => !show.continuing && hasEps(show.numberOfEpisodes) && differenceInCalendarYears(new Date(), show.airingData) < 1);
+    return (await this.malService.searchSeason(year + '', season)).filter(series => !series.continuing);
   }
 
   public async findFromMAL(name: string) {
-    const currentFolder = await this.animeFolderService.getCurrentFolder();
-    return findFromMAL(name, currentFolder);
+    return this.malService.search(name);
   }
 
   public async migrateSeries({ id, season, year }: MigrateSeriesDTO) {

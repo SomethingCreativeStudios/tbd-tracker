@@ -7,7 +7,7 @@ import { ConfigService } from '../config';
 import { getMetadataArgsStorage } from 'typeorm';
 
 export class TestTypeOrmOptions implements TypeOrmOptionsFactory {
-  constructor(@Inject(ConfigService) private readonly configService: ConfigService) {}
+  constructor(@Inject(ConfigService) private readonly configService: ConfigService) { }
 
   createTypeOrmOptions(): PostgresConnectionOptions {
     return {
@@ -22,9 +22,6 @@ export class TestTypeOrmOptions implements TypeOrmOptionsFactory {
       migrationsRun: true,
       entities: getMetadataArgsStorage().tables.map(tbl => tbl.target),
       migrations: [`./dist/migrations/*{.ts,.js}`],
-      cli: {
-        migrationsDir: `src/migrations`,
-      },
     };
   }
 }

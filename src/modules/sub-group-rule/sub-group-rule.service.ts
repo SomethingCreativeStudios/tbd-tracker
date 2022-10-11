@@ -16,7 +16,7 @@ export class SubGroupRuleService {
 
     @Inject(forwardRef(() => SubGroupService))
     private readonly subgroupService: SubGroupService,
-  ) {}
+  ) { }
 
   public async createMany(createDto: CreateSubGroupRuleDTO) {
     const foundSubgroup = await this.subgroupService.findById(createDto.subgroupId);
@@ -27,7 +27,7 @@ export class SubGroupRuleService {
   }
 
   public async update(updateDto: UpdateSubGroupRuleDTO) {
-    const foundRule = await this.subgroupRuleRepository.findOne({ id: updateDto.id });
+    const foundRule = await this.subgroupRuleRepository.findOne({ where: { id: updateDto.id } });
 
     return this.subgroupRuleRepository.save({ ...foundRule, ...updateDto });
   }

@@ -2,14 +2,11 @@ import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { SeriesService } from '../series/series.service';
 import { Season, SeasonName } from './models/season.entity';
-import { Season as SeasonSearch } from '../../jikan';
 import { SeasonRepository } from './season.repository';
-import { differenceInCalendarYears, format } from 'date-fns';
 import { SettingsService } from '../settings/settings.service';
 import { SubGroup } from '../sub-group/models';
 import { SubGroupRule, RuleType } from '../sub-group-rule/models';
-import { createFromMALSeason } from '../series/helpers/mal-helpers';
-import { AnimeFolderService } from '../anime-folder/anime-folder.service';
+import { MalService } from '../mal';
 
 @Injectable()
 export class SeasonService {
@@ -22,8 +19,8 @@ export class SeasonService {
 
     private readonly settingsService: SettingsService,
 
-    private readonly folderService: AnimeFolderService,
-  ) {}
+    private readonly malService: MalService,
+  ) { }
 
   public async create(season: Season) {
     return this.seasonRepository.save(season);
@@ -65,13 +62,11 @@ export class SeasonService {
 
   public async generateFromSeason(seasonName: SeasonName, year: number, options: any) {
     const newSeason = await this.find(seasonName, year);
-    const season = await SeasonSearch.anime(year, seasonName);
     const hasEps = (eps = 0) => eps === 0 || eps > 4;
-    const currentFolder = await this.folderService.getCurrentFolder();
 
-    const promisedSeries = await Promise.all(season.anime.map((anime) => createFromMALSeason(anime, currentFolder, options)));
+    const promisedSeries = await this.malService.searchSeason(year + '', seasonName, true);
 
-    newSeason.series = promisedSeries.filter((show) => !show.continuing && hasEps(show.numberOfEpisodes) && differenceInCalendarYears(new Date(), show.airingData) < 1);
+    newSeason.series = promisedSeries.filter((show) => !show.continuing && hasEps(show.numberOfEpisodes));
 
     return this.update(newSeason);
   }

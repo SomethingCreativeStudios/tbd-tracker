@@ -1,4 +1,4 @@
-import { Module, HttpModule, forwardRef } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Series } from './models';
 import { SeriesService } from './series.service';
@@ -9,12 +9,17 @@ import { AnimeFolderModule } from '../anime-folder/anime-folder.module';
 import { SeriesGateway } from './series.gateway';
 import { NyaaModule } from '../nyaa/nyaa.module';
 import { SocketModule } from '../socket/socket.module';
+import { AuthModule } from '../auth';
+import { GlobalCacheModule } from '../global-cache/global-cache.module';
+import { MalModule } from '../mal/mal.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Series]),
     SettingsModule,
     SocketModule,
+    GlobalCacheModule,
+    MalModule,
     forwardRef(() => SubgroupModule),
     forwardRef(() => SeasonModule),
     forwardRef(() => NyaaModule),
@@ -23,4 +28,4 @@ import { SocketModule } from '../socket/socket.module';
   providers: [SeriesService, SeriesGateway],
   exports: [SeriesService],
 })
-export class SeriesModule {}
+export class SeriesModule { }

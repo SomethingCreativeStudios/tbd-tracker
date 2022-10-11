@@ -12,7 +12,7 @@ export class SettingsService {
   constructor(
     @InjectRepository(Settings)
     private readonly settingsRepository: SettingsRepository,
-  ) {}
+  ) { }
 
   create(setting: CreateSettingDTO) {
     return this.settingsRepository.save(setting as Settings);
@@ -28,7 +28,7 @@ export class SettingsService {
     }
 
     if (searchModel?.type) {
-      return (await this.settingsRepository.find({ where: { type: searchModel.type } })) || [];
+      return (await this.settingsRepository.find({ where: { type: searchModel.type as any } })) || [];
     }
 
     return (await this.settingsRepository.find()) || [];

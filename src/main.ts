@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app/app.module';
 import * as tasks from './startup/tasks';
-import { TaskLoader } from './startup/TaskLoder';
+import { TaskLoader } from './startup/TaskLoader';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 require('dotenv').config();
 

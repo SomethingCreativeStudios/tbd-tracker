@@ -1,6 +1,6 @@
 import { SeriesModule } from './../modules/series/series.module';
 import { SeasonModule } from './../modules/season/season.module';
-import { Module, CacheModule, CacheInterceptor } from '@nestjs/common';
+import { Module, CacheInterceptor } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Connection } from 'typeorm';
 
@@ -18,16 +18,17 @@ import { AppGateway } from './app.gateway';
 import { NyaaModule } from '../modules/nyaa/nyaa.module';
 import { AnimeFolderModule } from '../modules/anime-folder/anime-folder.module';
 import { SettingsModule } from '../modules/settings/settings.module';
+import { SessionModule } from '../modules/session/session.module';
+import { AuthModule } from '../modules/auth/auth.module';
 import { ScheduleModule } from '@nestjs/schedule';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { GlobalCacheModule } from '~/modules/global-cache/global-cache.module';
+import { MalModule } from '~/modules/mal/mal.module';
 
 @Module({
   imports: [
-    CacheModule.register(),
+    ConfigModule,
     SeriesModule,
     SeasonModule,
-    UserModule,
-    ConfigModule,
     TaskModule,
     SubgroupModule,
     SubgroupRuleModule,
@@ -35,6 +36,11 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
     NyaaModule,
     AnimeFolderModule,
     SettingsModule,
+    UserModule,
+    AuthModule,
+    SessionModule,
+    GlobalCacheModule,
+    MalModule,
     ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
       useClass: TypeOrmOptions,
@@ -42,15 +48,11 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
   ],
   controllers: [AppController],
   providers: [
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: CacheInterceptor,
-    },
     AppService,
     AnimeFolderService,
-    AppGateway,
+    AppGateway
   ],
 })
 export class AppModule {
-  constructor(private readonly connection: Connection) {}
+  constructor() { }
 }
