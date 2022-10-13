@@ -20,6 +20,7 @@ import { Series } from '../series/models';
 import { SettingsService } from '../settings/settings.service';
 import { AnimeFolderService } from '../anime-folder/anime-folder.service';
 import { RuleType, SubGroupRule } from '../sub-group-rule/models';
+import { findLastSeason } from '../season/helpers/season-helper';
 
 @Injectable()
 export class NyaaService {
@@ -27,8 +28,8 @@ export class NyaaService {
   private client: WebTorrent.Instance;
 
   private activeTorrents: string[] = [];
-  private downloadingTorrents: { path: string; hash: string; name: string; url: string; fileName: string, id: number }[] = [];
-  private queuedTorrents: { path: string; url: string; fileName: string, id: number }[] = [];
+  private downloadingTorrents: { path: string; hash: string; name: string; url: string; fileName: string; id: number }[] = [];
+  private queuedTorrents: { path: string; url: string; fileName: string; id: number }[] = [];
 
   constructor(
     private readonly subgroupService: SubGroupService,
@@ -163,7 +164,7 @@ export class NyaaService {
     downloadPath: string,
     fileName: string,
     seriesId: number,
-    queuedName?: string
+    queuedName?: string,
   ): Promise<{ error?: string; name: string; files: WebTorrent.TorrentFile[] }> {
     try {
       console.log('Getting', torrentName, downloadPath);
@@ -189,19 +190,33 @@ export class NyaaService {
   }
 
   @Cron(CronExpression.EVERY_HOUR)
+  public async syncShowsCron() {
+    const defaultSeason = (await this.settingsService.findByKey('currentSeason')).value;
+    const defaultYear = (await this.settingsService.findByKey('currentYear')).value;
+
+    const { season, year } = findLastSeason(defaultSeason as SeasonName, defaultYear);
+
+    // await this.syncShows();
+    await this.syncShows(season, year + '');
+  }
+
   public async syncShows(season?: string, year?: string) {
     const defaultSeason = season || (await this.settingsService.findByKey('currentSeason')).value;
     const defaultYear = year || (await this.settingsService.findByKey('currentYear')).value;
 
-    const series = await this.seriesService.findBySeason(defaultSeason as SeasonName, Number(defaultYear));
+    const series = await this.seriesService.findBySeason(defaultSeason as SeasonName, Number(defaultYear), 'QUEUE', false);
+
     for await (const show of series) {
       await this.seriesService.syncWithMal(show.id);
-      await this.syncShow(show);
+      await this.syncShow(show, season, year);
     }
   }
 
   public async syncById(id: number) {
-    await this.syncShow(await this.seriesService.findById(id));
+    const foundSeries = await this.seriesService.findById(id);
+    const { name, year } = foundSeries.season;
+
+    await this.syncShow(foundSeries, name, year + '');
   }
 
   public async suggestSubgroups(name: string, altNames: string[]) {
@@ -229,11 +244,11 @@ export class NyaaService {
     });
   }
 
-  private async syncShow(series: Series) {
+  private async syncShow(series: Series, season?: string, year?: string) {
     this.socketService.nyaaSocket.emit('series-syncing', { id: series.id, type: 'STARTING' });
-    await this.folderService.ensureShowFolder(series.folderPath);
-    const downloadedEps = series.folderPath ? await this.findDownloadedEps(series.folderPath) : [];
-    const currentCount = series.folderPath ? await this.findHighestCount(series.folderPath) : series.downloaded;
+    await this.folderService.ensureShowFolder(series.folderPath, season, year);
+    const downloadedEps = series.folderPath ? await this.findDownloadedEps(series.folderPath, season, year) : [];
+    const currentCount = series.folderPath ? await this.findHighestCount(series.folderPath, season, year) : series.downloaded;
     const existingQueue = clone(series.showQueue);
 
     const items = await this.searchItems(NyaaFeed.ANIME, series.name, false);
@@ -260,7 +275,7 @@ export class NyaaService {
       queue: validItems,
     });
 
-    await this.waitFor(1000);
+    await this.waitFor(400);
   }
 
   private addTorrent(url: string, downloadPath: string, fileName: string, seriesId: number, queued: boolean = false) {
@@ -376,8 +391,8 @@ export class NyaaService {
     }, 1000);
   }
 
-  private async findHighestCount(folderName, offset = 0) {
-    const files = readdirSync(join(await this.folderService.getCurrentFolder(), folderName), { withFileTypes: true }).filter((item) => item.isFile());
+  private async findHighestCount(folderName, season?: string, year?: string, offset = 0) {
+    const files = readdirSync(join(await this.folderService.getCurrentFolder(season, year), folderName), { withFileTypes: true }).filter((item) => item.isFile());
 
     return files.reduce((acc, file) => {
       const epNumber = this.findCount(file.name) + offset;
@@ -386,8 +401,8 @@ export class NyaaService {
     }, 0);
   }
 
-  private async findDownloadedEps(folderName, offset = 0) {
-    const files = readdirSync(join(await this.folderService.getCurrentFolder(), folderName), { withFileTypes: true }).filter((item) => item.isFile());
+  private async findDownloadedEps(folderName, season?: string, year?: string, offset = 0) {
+    const files = readdirSync(join(await this.folderService.getCurrentFolder(season, year), folderName), { withFileTypes: true }).filter((item) => item.isFile());
 
     return files.map((file) => this.findCount(file.name) + offset);
   }
@@ -423,7 +438,7 @@ export class NyaaService {
   public async waitFor(time: number) {
     return new Promise((resolve) => {
       setTimeout(() => {
-        resolve(() => { });
+        resolve(() => {});
       }, time);
     });
   }

@@ -13,13 +13,13 @@ import { SocketGuard } from '~/guards/SocketGuard';
 
 @WebSocketGateway(8180, { namespace: 'nyaa', transports: ['websocket'] })
 export class NyaaGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
-  constructor(private nyaaService: NyaaService, private socketService: SocketService, private seriesService: SeriesService) { }
+  constructor(private nyaaService: NyaaService, private socketService: SocketService, private seriesService: SeriesService) {}
   afterInit(server: any) {
     this.socketService.nyaaSocket = server;
   }
 
-  handleConnection(client: any, ...args: any[]) { }
-  handleDisconnect(client: any) { }
+  handleConnection(client: any, ...args: any[]) {}
+  handleDisconnect(client: any) {}
 
   @WebSocketServer() public server: Server;
 
@@ -28,7 +28,7 @@ export class NyaaGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   @UseGuards(SocketGuard)
   @SubscribeMessage('sync')
   async syncSeries(@MessageBody() { id, season, year }: SyncDTO) {
-    id ? this.nyaaService.syncById(id) : this.nyaaService.syncShows(season, year);
+    id ? this.nyaaService.syncById(id) : this.nyaaService.syncShowsCron();
     return true;
   }
 

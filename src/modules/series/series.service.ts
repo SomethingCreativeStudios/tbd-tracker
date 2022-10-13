@@ -41,7 +41,7 @@ export class SeriesService {
     private readonly animeFolderService: AnimeFolderService,
 
     private readonly malService: MalService,
-  ) { }
+  ) {}
 
   public async createFromSeason({ malIds, seasonName, seasonYear }: CreateBySeasonDTO) {
     const newSeries = [] as Series[];
@@ -84,7 +84,6 @@ export class SeriesService {
 
   public async createFromMALId(createModel: CreateFromMalDTO) {
     const series = await this.malService.findById(createModel.malId, createModel.autoMatchFolders ?? true);
-
 
     const defaultSeason = createModel.seasonName || (await this.settingsService.findByKey('currentSeason')).value;
     const defaultYear = createModel.seasonYear || (await this.settingsService.findByKey('currentYear')).value;
@@ -142,7 +141,7 @@ export class SeriesService {
     return this.seriesRepository.delete(series.id);
   }
 
-  public async findBySeason(name: string, year: number, _sortBy: 'QUEUE' | 'NAME' | 'WATCH_STATUS' = 'QUEUE') {
+  public async findBySeason(name: string, year: number, _sortBy: 'QUEUE' | 'NAME' | 'WATCH_STATUS' = 'QUEUE', onlyWithQueue: boolean) {
     const series = ((await this.seasonService.find(name as SeasonName, year))?.series ?? []).map((show) => ({ ...show, nextAiringDate: getClosestAiringDate(show.airingData) }));
 
     const filteredQueue = (items: NyaaItem[], groups: SubGroup[]) =>
@@ -150,7 +149,7 @@ export class SeriesService {
         return groups.every((group) => group.preferedResultion === item.resolution);
       });
 
-    return series.sort((a, b) => {
+    const sortedSeries = series.sort((a, b) => {
       const aQueue = filteredQueue(a.showQueue, a.subgroups);
       const bQueue = filteredQueue(b.showQueue, b.subgroups);
 
@@ -162,6 +161,8 @@ export class SeriesService {
       if (aQueue.length > bQueue.length) return -1;
       if (aQueue.length < bQueue.length) return 1;
     });
+
+    return onlyWithQueue ? sortedSeries.filter((show) => filteredQueue(show.showQueue, show.subgroups).length) : sortedSeries;
   }
 
   public async findAll(overrideSeason?: string, overrideYear?: number) {
@@ -181,7 +182,7 @@ export class SeriesService {
   }
 
   public async searchByMALSeason({ season, year }: MalSearchDTO) {
-    return (await this.malService.searchSeason(year + '', season)).filter(series => !series.continuing);
+    return (await this.malService.searchSeason(year + '', season)).filter((series) => !series.continuing);
   }
 
   public async findFromMAL(name: string) {

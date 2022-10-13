@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 import { SortBy } from '../models/series.entity';
 
 export class SearchBySeasonDTO {
@@ -9,6 +9,10 @@ export class SearchBySeasonDTO {
   @IsOptional()
   @IsString()
   season?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  hasQueue?: boolean;
 
   @IsOptional()
   @IsEnum(SortBy)

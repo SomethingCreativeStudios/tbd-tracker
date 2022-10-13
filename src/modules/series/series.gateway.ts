@@ -1,8 +1,8 @@
 import { WebSocketGateway, OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect, WebSocketServer, SubscribeMessage, MessageBody } from '@nestjs/websockets';
 import { Logger, UseGuards } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
-import { MALClient } from '@chez14/mal-api-lite'
-import pkceChallenge from 'pkce-challenge'
+import { MALClient } from '@chez14/mal-api-lite';
+import pkceChallenge from 'pkce-challenge';
 import { SeriesService } from './series.service';
 import { SocketService } from '../socket/socket.service';
 import { AnimeFolderService } from '../anime-folder/anime-folder.service';
@@ -14,12 +14,12 @@ import { MalSearchDTO } from './dtos/MalSearchDTO';
 import { MigrateSeriesDTO } from './dtos/MigrateSeriesDTO';
 import { AuthService } from '../auth';
 import { SocketGuard } from '~/guards/SocketGuard';
+import { findLastSeason } from '../season/helpers/season-helper';
+import { SeasonName } from '../season/models';
 
 @WebSocketGateway(8180, { namespace: 'series', transports: ['websocket'] })
 export class SeriesGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
-
-
-  constructor(private seriesService: SeriesService, private folderService: AnimeFolderService, private socketService: SocketService) { }
+  constructor(private seriesService: SeriesService, private folderService: AnimeFolderService, private socketService: SocketService) {}
   afterInit(server: Server) {
     this.socketService.seriesSocket = server;
   }
@@ -29,7 +29,7 @@ export class SeriesGateway implements OnGatewayInit, OnGatewayConnection, OnGate
       client.disconnect();
     }
   }
-  handleDisconnect(client: any) { }
+  handleDisconnect(client: any) {}
 
   @WebSocketServer() public server: Server;
 
@@ -61,12 +61,20 @@ export class SeriesGateway implements OnGatewayInit, OnGatewayConnection, OnGate
 
   @UseGuards(SocketGuard)
   @SubscribeMessage('find-by-season')
-  async getAllSeries(@MessageBody() { season, year, sortBy }: SearchBySeasonDTO) {
+  async getAllSeries(@MessageBody() { season, year, sortBy, hasQueue }: SearchBySeasonDTO) {
     if (!season && !year) {
       return this.seriesService.findAll();
     }
 
-    return this.seriesService.findBySeason(season, +year, sortBy as any);
+    return this.seriesService.findBySeason(season, +year, sortBy as any, hasQueue);
+  }
+
+  @UseGuards(SocketGuard)
+  @SubscribeMessage('find-leftovers')
+  async getLeftOvers(@MessageBody() { season, year, sortBy }: SearchBySeasonDTO) {
+    const { season: lastSeason, year: lastYear } = findLastSeason(season as SeasonName, year + '');
+
+    return this.seriesService.findBySeason(lastSeason, +lastYear, sortBy as any, true);
   }
 
   @UseGuards(SocketGuard)

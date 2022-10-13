@@ -5,7 +5,6 @@ import { ConfigService } from '../../config/config.service';
 import { Role, RoleService } from '../../modules/role';
 import { UpgradeTask } from '../decorators/task.decorator';
 
-
 export class Upgrade1 extends BaseTask {
   private userService: UserService;
   private roleService: RoleService;
@@ -24,13 +23,13 @@ export class Upgrade1 extends BaseTask {
     const player = await this.userService.findByUsername('User');
     const admin = await this.userService.findByUsername('Admin');
 
-    if (player === undefined) {
+    if (!player) {
       console.log('Creating default "player" user');
       const playerPassword = this.configService.defaultPasswords.user;
       await this.createUser('User', playerPassword, 'user');
     }
 
-    if (admin === undefined) {
+    if (!admin) {
       console.log('Creating default "admin" user');
       const adminPassword = this.configService.defaultPasswords.admin;
       await this.createUser('Admin', adminPassword, 'admin');
@@ -55,7 +54,7 @@ export class Upgrade1 extends BaseTask {
 
   private async getRole(roleName: string) {
     const roles = await this.roleService.findAll();
-    const foundRole = roles.find(role => role.name === roleName);
+    const foundRole = roles.find((role) => role.name === roleName);
 
     if (foundRole) {
       return foundRole;
