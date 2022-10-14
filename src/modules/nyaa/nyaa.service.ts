@@ -287,12 +287,12 @@ export class NyaaService {
       console.log('Client is downloading:', torrent.infoHash, realName);
       this.downloadingTorrents.forEach((tor) => (tor.url === url ? { ...tor, name: realName, hash: torrent.infoHash } : tor));
 
-      this.socketService?.nyaaSocket?.emit('start-downloading', { hash: torrent.infoHash, value: { name: realName, url, queued } });
-      this.socketService?.nyaaSocket?.emit('metadata', { hash: torrent.infoHash, value: { name: realName } });
+      this.socketService?.nyaaSocket?.emit('start-downloading', { hash: torrent.infoHash, value: { name: realName, id: seriesId, url, queued } });
+      this.socketService?.nyaaSocket?.emit('metadata', { hash: torrent.infoHash, value: { name: realName, id: seriesId } });
 
       torrent.on('done', async () => {
         console.log('torrent finished downloading', torrent.infoHash, realName);
-        this.socketService?.nyaaSocket?.emit('downloaded', { hash: torrent.infoHash, name: realName, value: true });
+        this.socketService?.nyaaSocket?.emit('downloaded', { hash: torrent.infoHash, name: realName, value: true, id: seriesId });
 
         const foundTorrentIndex = this.downloadingTorrents.findIndex((item) => item.url === url);
 
@@ -318,7 +318,7 @@ export class NyaaService {
 
       torrent.on('ready', function () {
         console.log('torrent metadata', realName);
-        this.socketService?.nyaaSocket?.emit('metadata', { hash: torrent.infoHash, value: { name: realName } });
+        this.socketService?.nyaaSocket?.emit('metadata', { hash: torrent.infoHash, value: { name: realName, id: seriesId } });
       });
 
       const interval = setInterval(() => {
@@ -332,6 +332,7 @@ export class NyaaService {
             progress: torrent.progress,
             timeLeft: this.millisecondsToTime(torrent.timeRemaining),
             ratio: torrent.ratio,
+            id: seriesId
           },
         });
       }, 1000);
@@ -354,8 +355,8 @@ export class NyaaService {
 
     console.log('Client is downloading:', hash, torrentName);
 
-    this.socketService?.nyaaSocket?.emit('start-downloading', { hash, value: { name: torrentName, url, queued } });
-    this.socketService?.nyaaSocket?.emit('metadata', { hash, value: { name: torrentName } });
+    this.socketService?.nyaaSocket?.emit('start-downloading', { hash, value: { name: torrentName, url, queued, id: seriesId } });
+    this.socketService?.nyaaSocket?.emit('metadata', { hash, value: { name: torrentName, id: seriesId } });
 
     let totalDownloaded = 0;
 
@@ -376,7 +377,7 @@ export class NyaaService {
 
       if (totalDownloaded >= 100) {
         clearInterval(timeout);
-        this.socketService?.nyaaSocket?.emit('downloaded', { hash, name: torrentName, value: true });
+        this.socketService?.nyaaSocket?.emit('downloaded', { hash, name: torrentName, value: true, id: seriesId });
         console.log('Done Downloaded', hash);
 
         this.downloadingTorrents.pop();
@@ -438,7 +439,7 @@ export class NyaaService {
   public async waitFor(time: number) {
     return new Promise((resolve) => {
       setTimeout(() => {
-        resolve(() => {});
+        resolve(() => { });
       }, time);
     });
   }

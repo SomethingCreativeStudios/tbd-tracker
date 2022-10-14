@@ -1,20 +1,41 @@
-FROM node:12.14.1
-
-RUN npm install webpack -g
-
-RUN apt-get update -qq && apt-get install -y yarn && yarn global add @nestjs/cli
+FROM node:16.10-alpine AS BUILD_IMAGE
 
 # Create app directory
 WORKDIR /src/app
 
-# Install app dependencies
-# A wildcard is used to ensure both package.json AND package-lock.json are copied
-# where available (npm@5+)
-COPY package*.json ./
-
+COPY package.json yarn.lock ./
 
 COPY . .
 
+# install dependencies
+RUN yarn --frozen-lockfile
+
+# install dependencies
+RUN  yarn --frozen-lockfile
+
+RUN yarn build
+
+
+# remove development dependencies
+
+FROM node:16.10-alpine
+
+WORKDIR /src/app
+
+# copy from build image
+COPY --from=BUILD_IMAGE /src/app/dist ./dist
+COPY --from=BUILD_IMAGE /src/app/node_modules ./node_modules
+COPY --from=BUILD_IMAGE /src/app/package.json ./package.json
+COPY --from=BUILD_IMAGE /src/app/scripts ./scripts
+COPY --from=BUILD_IMAGE /src/app/tsconfig.json ./tsconfig.json
+COPY --from=BUILD_IMAGE /src/app/tsconfig.build.json ./tsconfig.build.json
+COPY --from=BUILD_IMAGE /src/app/src ./src
+
+
+ENV TZ="America/New_York"
+
+RUN npm install tsconfig-paths -g && npm install ts-node -g && npm install typeorm -g && rm -rf /etc/localtime && ln -s /usr/share/zoneinfo/America/New_York /etc/localtime
+
 EXPOSE 3000
 
-CMD yarn start:docker
+CMD [ "yarn", "start:docker" ]
