@@ -251,10 +251,9 @@ export class NyaaService {
     const currentCount = series.folderPath ? await this.findHighestCount(series.folderPath, season, year) : series.downloaded;
     const existingQueue = clone(series.showQueue);
 
-    const items = await this.searchItems(NyaaFeed.ANIME, series.name, false);
-    const altItems = await Promise.all(series.otherNames.map((alt) => this.searchItems(NyaaFeed.ANIME, alt, false)));
-
-    const uniqItems = this.uniqNyaaItems(items.concat(...altItems));
+    const searchItems = this.findSearchItems(series);
+    const items = await Promise.all(searchItems.map((name) => this.searchItems(NyaaFeed.ANIME, name, false)));
+    const uniqItems = this.uniqNyaaItems([].concat(...items));
 
     const validItems = this.findValidItems(
       (uniqItems || []).filter((item) => !downloadedEps.includes(item.episodeName + series.offset)),
@@ -278,9 +277,19 @@ export class NyaaService {
     await this.waitFor(400);
   }
 
+  private findSearchItems({ subgroups = [] }: Series) {
+    return subgroups.reduce((acc, subgroup) => {
+      const { rules = [] } = subgroup;
+      const names = rules.map(rule => rule.isPositive ? rule.text : '').filter(Boolean);
+      return acc.concat(names);
+    }, [] as string[]);
+  }
+
   private addTorrent(url: string, downloadPath: string, fileName: string, seriesId: number, queued: boolean = false) {
     this.activeTorrents.push(url);
     this.downloadingTorrents.push({ path: downloadPath, url, hash: '', name: downloadPath, id: seriesId, fileName });
+
+    this.client.on('error', function (err) { console.log('Error', err) })
 
     this.client.add(url, { path: downloadPath, maxWebConns: 100 }, (torrent) => {
       const realName = fileName || torrent.name;
