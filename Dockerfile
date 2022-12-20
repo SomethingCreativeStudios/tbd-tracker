@@ -1,4 +1,4 @@
-FROM node:16.10-alpine AS BUILD_IMAGE
+FROM node:16.10 AS BUILD_IMAGE
 
 # Create app directory
 WORKDIR /src/app
