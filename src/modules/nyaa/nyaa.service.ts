@@ -39,6 +39,13 @@ export class NyaaService {
     private readonly folderService: AnimeFolderService,
   ) {
     this.client = new WebTorrent();
+
+    this.client.on('error', (err) => {
+      console.error(err);
+
+     this.client = new WebTorrent();
+    });
+
   }
 
   public onConnect(socket: Socket) {
@@ -196,7 +203,7 @@ export class NyaaService {
 
     const { season, year } = findLastSeason(defaultSeason as SeasonName, defaultYear);
 
-    // await this.syncShows();
+    await this.syncShows();
     await this.syncShows(season, year + '');
   }
 
@@ -220,7 +227,6 @@ export class NyaaService {
   }
 
   public async suggestSubgroups(name: string, altNames: string[]) {
-    await this.waitFor(400);
     const items = await this.searchItems(NyaaFeed.ANIME, name, false);
     const altItems = await Promise.all(altNames.map((alt) => this.searchItems(NyaaFeed.ANIME, alt, false)));
 
@@ -332,7 +338,7 @@ export class NyaaService {
             progress: torrent.progress,
             timeLeft: this.millisecondsToTime(torrent.timeRemaining),
             ratio: torrent.ratio,
-            id: seriesId
+            id: seriesId,
           },
         });
       }, 1000);
@@ -439,7 +445,7 @@ export class NyaaService {
   public async waitFor(time: number) {
     return new Promise((resolve) => {
       setTimeout(() => {
-        resolve(() => { });
+        resolve(() => {});
       }, time);
     });
   }
