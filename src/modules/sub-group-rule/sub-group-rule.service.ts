@@ -1,27 +1,39 @@
-import { Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { SubGroupRule, RuleType } from './models';
 import { SubGroupRuleRepository } from './sub-group-rule.repository';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeepPartial } from 'typeorm';
 import { SubGroup } from '../sub-group/models';
+import { CreateSubGroupRuleDTO } from './dtos/CreateSubGroupRuleDTO';
+import { SubGroupService } from '../sub-group/sub-group.service';
+import { UpdateSubGroupRuleDTO } from './dtos/UpdateSubGroupRuleDTO';
 
 @Injectable()
 export class SubGroupRuleService {
   constructor(
     @InjectRepository(SubGroupRule)
     private readonly subgroupRuleRepository: SubGroupRuleRepository,
-  ) {}
 
-  public async create(subGroupRule: SubGroupRule) {
-    return this.subgroupRuleRepository.save(subGroupRule);
+    @Inject(forwardRef(() => SubGroupService))
+    private readonly subgroupService: SubGroupService,
+  ) { }
+
+  public async createMany(createDto: CreateSubGroupRuleDTO) {
+    const foundSubgroup = await this.subgroupService.findById(createDto.subgroupId);
+
+    const newRules = createDto.rules.map((rule) => ({ isPositive: rule.isPositive, ruleType: rule.ruleType, text: rule.text, subGroup: foundSubgroup }));
+
+    return Promise.all(newRules.map((rule) => this.subgroupRuleRepository.save(rule)));
   }
 
-  public async update(subGroupRule: SubGroupRule) {
-    return this.subgroupRuleRepository.save(subGroupRule);
+  public async update(updateDto: UpdateSubGroupRuleDTO) {
+    const foundRule = await this.subgroupRuleRepository.findOne({ where: { id: updateDto.id } });
+
+    return this.subgroupRuleRepository.save({ ...foundRule, ...updateDto });
   }
 
-  public async delete(subGroupRule: SubGroupRule) {
-    return this.subgroupRuleRepository.remove(subGroupRule);
+  public async delete(ruleId: number) {
+    return this.subgroupRuleRepository.delete({ id: ruleId });
   }
 
   public async find(subGroupRule: DeepPartial<SubGroupRule>) {
@@ -34,15 +46,16 @@ export class SubGroupRuleService {
     return (await this.find(subGroupRule))[0];
   }
 
+  public async findBySubgroup(subgroupId: number) {
+    return this.subgroupRuleRepository.createQueryBuilder().where('"subGroupId" = :id', { id: subgroupId }).getMany();
+  }
+
   public async findAll() {
     return this.subgroupRuleRepository.find();
   }
 
   public matchRule(text: string, rule: SubGroupRule, subgroup: SubGroup) {
-    const treatedText = text
-      .toLowerCase()
-      .replace(`[${subgroup.name.toLowerCase()}]`, '')
-      .trim();
+    const treatedText = text.toLowerCase().replace(`[${subgroup.name.toLowerCase()}]`, '').trim();
     const ruleText = rule.text.trim().toLowerCase();
 
     if (!this.matchedResolutions(text, subgroup.preferedResultion)) {
@@ -62,7 +75,7 @@ export class SubGroupRuleService {
     }
 
     if (rule.ruleType === RuleType.REGEX) {
-      return treatedText.match(new RegExp(ruleText)).length > 0;
+      return treatedText.match(new RegExp(ruleText))?.length > 0;
     }
 
     return rule.ruleType === RuleType.BLANK;
@@ -75,6 +88,6 @@ export class SubGroupRuleService {
       return true;
     }
 
-    return !allResolutions.some(res => text.includes(`[${res}]`));
+    return !allResolutions.some((res) => text.includes(`[${res}]`));
   }
 }

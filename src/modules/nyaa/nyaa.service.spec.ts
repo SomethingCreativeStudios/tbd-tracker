@@ -11,6 +11,7 @@ import { RuleType, SubGroupRule } from '../sub-group-rule/models';
 import { NyaaItem } from './models/nyaaItem';
 import { SocketModule } from '../socket/socket.module';
 import { AppGateway } from '../../app/app.gateway';
+import { Series } from '../series/models';
 
 jest.setTimeout(700000);
 
@@ -27,7 +28,7 @@ function createSubGroup(name: string, rules: { text: string; type: RuleType; joi
   subGroup.name = name;
   subGroup.preferedResultion = '720';
 
-  rules.forEach(rule => {
+  rules.forEach((rule) => {
     subGroup.addRule(createRule(rule.text, rule.type, rule.joinType));
   });
 
@@ -80,11 +81,46 @@ const subgroups = [
   ]),
 ];
 
+describe('Items', () => {
+  const service = new NyaaService(null, null, null, null, null);
+  it('Replace Name - Nothing', () => {
+    const series = new Series();
+
+    const hundred = service.findOverrideName(series.showName, series.offset, '[SubsPlease] 100-man no Inochi no Ue ni Ore wa Tatte Iru - 14 (720p) [6B61BF6E].mkv');
+    const hero = service.findOverrideName(series.showName, series.offset, '[Erai-raws] Boku no Hero Academia 5th Season - 16 [720p][Multiple Subtitle].mkv');
+
+    expect(hundred).toBe('[SubsPlease] 100-man no Inochi no Ue ni Ore wa Tatte Iru - 14 (720p) [6B61BF6E].mkv');
+    expect(hero).toBe('[Erai-raws] Boku no Hero Academia 5th Season - 16 [720p][Multiple Subtitle].mkv');
+  });
+
+  it('Replace Name - Offset', () => {
+    const series = new Series();
+    series.offset = 10;
+
+    const hundred = service.findOverrideName(series.showName, series.offset, '[SubsPlease] 100-man no Inochi no Ue ni Ore wa Tatte Iru - 14 (720p) [6B61BF6E].mkv');
+    const hero = service.findOverrideName(series.showName, series.offset, '[Erai-raws] Boku no Hero Academia 5th Season - 16 [720p][Multiple Subtitle].mkv');
+
+    expect(hundred).toBe('[SubsPlease] 100-man no Inochi no Ue ni Ore wa Tatte Iru - 24 (720p) [6B61BF6E].mkv');
+    expect(hero).toBe('[Erai-raws] Boku no Hero Academia 5th Season - 26 [720p][Multiple Subtitle].mkv');
+  });
+
+  it('Replace Name - Both', () => {
+    const series = new Series();
+    series.offset = 10;
+
+    const hundred = service.findOverrideName('Standing on hundred lives', 10, '[SubsPlease] 100-man no Inochi no Ue ni Ore wa Tatte Iru - 14 (720p) [6B61BF6E].mkv');
+    const hero = service.findOverrideName('Hero Academy', 10, '[Erai-raws] Boku no Hero Academia 5th Season - 16 [720p][Multiple Subtitle].mkv');
+
+    expect(hundred).toBe('[SubsPlease] Standing on hundred lives - 24.mkv');
+    expect(hero).toBe('[Erai-raws] Hero Academy - 26.mkv');
+  });
+});
+
 describe('Formatter service', () => {
   let testingModule: TestingModule;
   let service: NyaaService;
 
-  beforeAll(async done => {
+  beforeAll(async (done) => {
     try {
       testingModule = await Test.createTestingModule({
         imports: [
@@ -108,7 +144,7 @@ describe('Formatter service', () => {
 
   describe('Highway Service', () => {
     const rootPath = 'C:\\Users\\eric-\\Documents\\download_test';
-    it('Test Download', async done => {
+    it('Test Download', async (done) => {
       const fileName = 'Maou Gakuin no Futekigousha [WN]';
 
       if (existsSync(`${rootPath}\\${fileName}`)) {
@@ -128,13 +164,13 @@ describe('Formatter service', () => {
   });
 
   describe('Anime Feeds', () => {
-    it('Getting All', async done => {
+    it('Getting All', async (done) => {
       const result = await service.fetchItems(NyaaFeed.ANIME);
       expect(result).not.toBeNull();
       done();
     });
 
-    it('Link Filter', async done => {
+    it('Link Filter', async (done) => {
       const goodCommie = service.findValidItems(
         [
           createNyaaItem('commie', 'go! princess precure - 100.mkv'),

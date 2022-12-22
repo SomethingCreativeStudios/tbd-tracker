@@ -1,32 +1,26 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { differenceInCalendarYears } from 'date-fns';
+import { isAfter } from 'date-fns';
 import sanitize from 'sanitize-filename';
+
+import { getClosestAiringDate } from '~/utlis/time-helpers';
 
 import { Series, WatchingStatus } from './models';
 import { SeriesRepository } from './series.repository';
-import { AnimeById } from 'jikants/dist/src/interfaces/anime/ById';
-import { Search, Anime, Season } from '../../jikan';
 import { SeasonService } from '../season/season.service';
-import { Anime as AnimeSeason } from '../../jikan/interfaces/season/Season';
 
-import { AuthorizationCode } from 'simple-oauth2';
 import { SubGroupService } from '../sub-group';
 import { SeasonName } from '../season/models';
 import { SettingsService } from '../settings/settings.service';
-import { SubGroup } from '../sub-group/models';
-import { SubGroupRule, RuleType } from '../sub-group-rule/models';
 import { AnimeFolderService } from '../anime-folder/anime-folder.service';
-
-const config = {
-  client: {
-    id: '3d6658c97562e9a4d2c5234258b08878',
-    secret: '35b47ce2ed7e13430ec64fa4cba5d2caf7494f88ba13d1d30d5c4af5296c62e4',
-  },
-  auth: {
-    tokenHost: 'https://myanimelist.net/v1/oauth2/authorize',
-  },
-};
+import { CreateFromMalDTO } from './dtos/CreateFromMalDTO';
+import { UpdateSeriesDTO } from './dtos/UpdateSeriesDTO';
+import { CreateBySeasonDTO } from './dtos/CreateBySeasonDTO';
+import { MalSearchDTO } from './dtos/MalSearchDTO';
+import { MigrateSeriesDTO } from './dtos/MigrateSeriesDTO';
+import { NyaaItem } from '../nyaa/models/nyaaItem';
+import { SubGroup } from '../sub-group/models';
+import { MalService } from '../mal/mal.service';
 
 @Injectable()
 export class SeriesService {
@@ -45,108 +39,74 @@ export class SeriesService {
 
     @Inject(forwardRef(() => AnimeFolderService))
     private readonly animeFolderService: AnimeFolderService,
+
+    private readonly malService: MalService,
   ) {}
 
-  public async createFromSeason(series: Series[], name: SeasonName, year: number) {
-    const season = await this.seasonService.find(name, year);
+  public async createFromSeason({ malIds, seasonName, seasonYear }: CreateBySeasonDTO) {
+    const newSeries = [] as Series[];
+    for await (const id of malIds) {
+      const createdSeries = await this.createFromMALId({ seasonName, seasonYear, malId: id });
+      newSeries.push(createdSeries);
+    }
 
-    return Promise.all(series.map(show => this.create({ ...show, season })));
+    console.log('created series', newSeries.length);
+    return newSeries;
+  }
+
+  public async syncImage(id: number) {
+    const series = await this.seriesRepository.findOne({ where: { id } });
+    const malSeries = await this.malService.findById(series.malId);
+
+    await this.seriesRepository.update({ id }, { imageUrl: malSeries.imageUrl });
+
+    return malSeries.imageUrl;
+  }
+
+  public async syncWithMal(id: number) {
+    const series = await this.seriesRepository.findOne({ where: { id } });
+    const malSeries = await this.malService.findById(series.malId);
+
+    await this.seriesRepository.update(
+      { id },
+      { imageUrl: malSeries.imageUrl, airingData: malSeries.airingData, description: malSeries.description, numberOfEpisodes: malSeries.numberOfEpisodes, score: malSeries.score },
+    );
+
+    return this.seriesRepository.findOne({ where: { id } });
   }
 
   public async create(series: Series) {
-     /*const { value: subgroupName } = await this.settingsService.findByKey('defaultSubgroup');
-
-   if (!series.subgroups || series.subgroups.length === 0) {
-      const subGroup = new SubGroup();
-
-      subGroup.name = subgroupName;
-      subGroup.preferedResultion = '720';
-
-      const rule = new SubGroupRule();
-      rule.isPositive = true;
-      rule.ruleType = RuleType.STARTS_WITH;
-      rule.text = series.name;
-
-      subGroup.addRule(rule);
-
-      series.subgroups = [subGroup];
-    }*/
-
-    await this.animeFolderService.ensureShowFolder(series.name, series.season.name, series.season.year + '');
+    await this.animeFolderService.ensureShowFolder(series.name, series.season.name, String(series.season.year));
 
     series.folderPath = sanitize(series.name);
     return this.seriesRepository.save(series);
   }
 
-  public async findFromMAL(seriesName: string) {
-    const foundAnime = await Search.search(seriesName, 'anime', 1);
+  public async createFromMALId(createModel: CreateFromMalDTO) {
+    const series = await this.malService.findById(createModel.malId, createModel.autoMatchFolders ?? true);
 
-    if ((foundAnime?.results?.length ?? 0) === 0) {
-      throw Error('Show Not Found');
-    }
-
-    return (await Promise.all(foundAnime.results.map(async result => this.createFromMAL(await Anime.byId(result.mal_id))))).filter(
-      show => show.imageUrl,
-    );
-  }
-
-  public async getToken() {
-    console.log('TEST');
-    const client = new AuthorizationCode(config);
-
-    const authorizationUri = client.authorizeURL({
-      redirect_uri: 'http://localhost:3000/callback',
-    });
-
-    const tokenParams = {
-      code: 'AUTHORIZATION_CODE',
-      redirect_uri: 'http://localhost:3000/callback',
-      code_challenge_method: 'plain',
-      response_type: 'code',
-    };
-
-    try {
-      const accessToken = await client.getToken(tokenParams, { json: true });
-
-      console.log(accessToken);
-    } catch (error) {
-      console.log('Access Token Error', error.message);
-    }
-  }
-
-  public async createFromMALName(seriesName: string) {
-    const foundAnime = await Search.search(seriesName, 'anime', 1);
-
-    if ((foundAnime?.results?.length ?? 0) === 0) {
-      throw Error('Show Not Found');
-    }
-
-    return this.createFromMAL(await Anime.byId(foundAnime.results[0].mal_id));
-  }
-
-  public async createFromMALId(id: number, season?, year?, options?: any) {
-    const series = await this.createFromMAL(await Anime.byId(id), options);
-
-    const defaultSeason = season || (await this.settingsService.findByKey('currentSeason')).value;
-    const defaultYear = year || (await this.settingsService.findByKey('currentYear')).value;
+    const defaultSeason = createModel.seasonName || (await this.settingsService.findByKey('currentSeason')).value;
+    const defaultYear = createModel.seasonYear || (await this.settingsService.findByKey('currentYear')).value;
 
     series.season = await this.seasonService.find(defaultSeason as SeasonName, Number(defaultYear));
     return this.create(series);
   }
 
-  public async update(series: Series) {
-    if (series.downloaded > 3 && series.watchStatus === WatchingStatus.THREE_RULE) {
-      series.watchStatus = WatchingStatus.WATCHING;
+  public async update(updateModel: UpdateSeriesDTO) {
+    if (updateModel.downloaded > 3 && updateModel.watchStatus === WatchingStatus.THREE_RULE) {
+      updateModel.watchStatus = WatchingStatus.WATCHING;
     }
 
-    if (series.downloaded === series.numberOfEpisodes && series.numberOfEpisodes > 1 && series.watchStatus === WatchingStatus.WATCHING) {
-      series.watchStatus = WatchingStatus.WATCHED;
+    if (updateModel.downloaded === updateModel.numberOfEpisodes && updateModel.numberOfEpisodes > 1 && updateModel.watchStatus === WatchingStatus.WATCHING) {
+      updateModel.watchStatus = WatchingStatus.WATCHED;
     }
 
-    return this.seriesRepository.save(series);
+    await this.seriesRepository.update({ id: updateModel.id }, updateModel);
+
+    return this.seriesRepository.findOne({ where: { id: updateModel.id } });
   }
 
-  public async updateWatchStatus(id: number) {
+  public async toggleWatchStatus(id: number) {
     const series = await this.findById(id);
     const { watchStatus } = series;
 
@@ -166,41 +126,43 @@ export class SeriesService {
       series.watchStatus = WatchingStatus.NOT_WATCHING;
     }
 
-    await this.seriesRepository.save(series);
+    await this.seriesRepository.update({ id }, { watchStatus: series.watchStatus });
 
     return series.watchStatus;
   }
 
-  public async delete(series: Series) {
-    return this.seriesRepository.remove(series);
-  }
+  public async deleteById(id: number) {
+    const series = await this.seriesRepository.findOne({ relations: ['season', 'subgroups', 'subgroups.rules'], where: { id } });
 
-  public async deketeById(id: number) {
-    const series = await this.seriesRepository.findOne({ relations: ['season', 'subgroups', 'subgroups.rules'], where: { id: id } });
-
-    const subPromises = (series.subgroups || []).map(sub => this.subgroupService.delete(sub));
+    const subPromises = (series.subgroups || []).map((sub) => this.subgroupService.delete(sub.id));
 
     await Promise.all(subPromises);
 
-    return this.delete(series);
+    return this.seriesRepository.delete(series.id);
   }
 
-  public async findBySeason(name: string, year: number, sortBy: 'QUEUE' | 'NAME' | 'WATCH_STATUS' = 'QUEUE') {
-    const series = (await this.seasonService.find(name as SeasonName, year))?.series ?? [];
+  public async findBySeason(name: string, year: number, _sortBy: 'QUEUE' | 'NAME' | 'WATCH_STATUS' = 'QUEUE', onlyWithQueue: boolean) {
+    const series = ((await this.seasonService.find(name as SeasonName, year))?.series ?? []).map((show) => ({ ...show, nextAiringDate: getClosestAiringDate(show.airingData) }));
 
-    return series.sort((a, b) => {
-      if (sortBy === 'QUEUE') {
-        return b.showQueue.length - a.showQueue.length;
+    const filteredQueue = (items: NyaaItem[], groups: SubGroup[]) =>
+      items.filter((item) => {
+        return groups.every((group) => group.preferedResultion === item.resolution);
+      });
+
+    const sortedSeries = series.sort((a, b) => {
+      const aQueue = filteredQueue(a.showQueue, a.subgroups);
+      const bQueue = filteredQueue(b.showQueue, b.subgroups);
+
+      if (aQueue.length === bQueue.length) {
+        if (isAfter(a.nextAiringDate, b.nextAiringDate)) return 1;
+        if (!isAfter(a.nextAiringDate, b.nextAiringDate)) return -1;
       }
 
-      if (sortBy === 'NAME') {
-        return a.name.localeCompare(b.name);
-      }
-
-      if (sortBy === 'WATCH_STATUS') {
-        return a.watchStatus.localeCompare(b.watchStatus);
-      }
+      if (aQueue.length > bQueue.length) return -1;
+      if (aQueue.length < bQueue.length) return 1;
     });
+
+    return onlyWithQueue ? sortedSeries.filter((show) => filteredQueue(show.showQueue, show.subgroups).length) : sortedSeries;
   }
 
   public async findAll(overrideSeason?: string, overrideYear?: number) {
@@ -208,71 +170,36 @@ export class SeriesService {
     const currentYear = await this.settingsService.findByKey('currentYear');
     const currentSeason = await this.settingsService.findByKey('currentSeason');
 
-    return series.filter(
-      found => found.season.name === overrideSeason || (currentSeason.value && found.season.year === (overrideYear || Number(currentYear.value))),
-    );
+    return series
+      .filter((found) => found.season.name === overrideSeason || (currentSeason.value && found.season.year === (overrideYear || Number(currentYear.value))))
+      .map((series) => ({ ...series, nextAiringDate: getClosestAiringDate(series.airingData) }));
   }
 
   public async findById(seriesId: number) {
-    return this.seriesRepository.findOne({ relations: ['season', 'subgroups', 'subgroups.rules'], where: { id: seriesId } });
+    const series = await this.seriesRepository.findOne({ relations: ['season', 'subgroups', 'subgroups.rules'], where: { id: seriesId } });
+
+    return { ...series, nextAiringDate: getClosestAiringDate(series.airingData) };
   }
 
-  public async searchByMALSeason(seasonName: SeasonName, year: number) {
-    const newSeason = await this.seasonService.find(seasonName, year);
-    const season = await Season.anime(year, seasonName);
-
-    const hasEps = (eps = 0) => eps === 0 || eps > 4;
-
-    const promisedSeries = await Promise.all(season.anime.map(anime => this.createFromMALSeason(anime, { autoMatchFolders: false })));
-
-    return promisedSeries.filter(
-      show => !show.continuing && hasEps(show.numberOfEpisodes) && differenceInCalendarYears(new Date(), show.airingData) < 1,
-    );
+  public async searchByMALSeason({ season, year }: MalSearchDTO) {
+    return (await this.malService.searchSeason(year + '', season)).filter((series) => !series.continuing);
   }
 
-  public async createFromMALSeason(animeModel: AnimeSeason, options: { autoMatchFolders: boolean }) {
-    const series = new Series();
-
-    series.airingData = new Date(animeModel.airing_start) || new Date();
-    series.description = animeModel.synopsis;
-    series.genres = animeModel?.genres?.map(genre => genre.name) ?? [];
-    series.imageUrl = animeModel.image_url;
-    series.name = animeModel.title;
-    series.otherNames = [];
-    series.numberOfEpisodes = animeModel.episodes || 0;
-    series.score = animeModel.score;
-    series.studio = animeModel.licensors?.join(' ') ?? '';
-    series.continuing = animeModel.continuing;
-    series.tags = [];
-    series.watchStatus = WatchingStatus.THREE_RULE;
-
-    if (options.autoMatchFolders) {
-      series.folderPath = await this.animeFolderService.autoMakeFolder(series.name);
-    }
-
-    return series;
+  public async findFromMAL(name: string) {
+    return this.malService.search(name);
   }
 
-  public async createFromMAL(animeModel: AnimeById, options?: { autoMatchFolders: boolean }) {
-    const series = new Series();
+  public async migrateSeries({ id, season, year }: MigrateSeriesDTO) {
+    const foundSeries = await this.findById(id);
+    const foundSeason = await this.seasonService.find(season, year);
+    const currentSeason = foundSeries.season;
 
-    series.airingData = new Date(animeModel?.aired?.from ?? new Date()) || new Date();
-    series.description = animeModel.synopsis;
-    series.genres = animeModel?.genres?.map(genre => genre.name) ?? [];
-    series.imageUrl = animeModel.image_url;
-    series.name = animeModel.title;
-    series.otherNames = [animeModel.title_english, animeModel.title_japanese, ...(animeModel?.title_synonyms ?? [])];
-    series.numberOfEpisodes = animeModel.episodes || 0;
-    series.score = animeModel.score;
-    series.studio = animeModel?.studios?.map(({ name }) => name).join(' ') ?? '';
-    series.tags = [];
-    series.watchStatus = WatchingStatus.THREE_RULE;
-    series.malId = animeModel.mal_id;
+    foundSeries.season = foundSeason;
 
-    if (options?.autoMatchFolders) {
-      series.folderPath = await this.animeFolderService.autoMakeFolder(series.name);
-    }
+    await this.seriesRepository.save(foundSeries);
 
-    return series;
+    await this.animeFolderService.migrateSeries(foundSeries.folderPath, currentSeason.name, currentSeason.year, foundSeason.name, foundSeason.year);
+
+    return true;
   }
 }

@@ -1,4 +1,4 @@
-import { Post, Get, Body, Controller, UseGuards, UnauthorizedException } from '@nestjs/common';
+import { Post, Get, Body, Controller, UseGuards, UnauthorizedException, forwardRef, Inject } from '@nestjs/common';
 import { UserService } from './user.service';
 import { AuthGuard } from '@nestjs/passport';
 import { Roles, RoleName } from '../../decorators/RolesDecorator';
@@ -7,12 +7,17 @@ import { RoleService } from '../role';
 import { RolesGuard } from '../../guards';
 import { CreateToken } from './request';
 import { User } from './models';
-import { ApiTags, ApiHideProperty, ApiBody, ApiResponse, ApiBodyOptions, ApiExcludeEndpoint } from '@nestjs/swagger';
+import { ApiTags, ApiHideProperty, ApiBody, ApiResponse, ApiExcludeEndpoint } from '@nestjs/swagger';
 
 @ApiTags('User')
 @Controller('api/v1/Users')
 export class UserController {
-  constructor(private readonly userService: UserService, private readonly authService: AuthService, private readonly roleService: RoleService) {}
+  constructor(
+    private readonly userService: UserService,
+    @Inject(forwardRef(() => AuthService))
+    private readonly authService: AuthService,
+    private readonly roleService: RoleService
+  ) { }
 
   @Get()
   @Roles(RoleName.ADMIN)
@@ -42,11 +47,8 @@ export class UserController {
       throw new UnauthorizedException();
     }
 
-    // default to five mins
-    request.ttl = request.ttl ? request.ttl : 300;
-
     // convert roles to useable roles
     const roles = await this.roleService.convertRolesToRoleNames(foundUser.roles);
-    return await this.authService.createToken(roles, request.ttl);
+    return await this.authService.createSessionId(roles);
   }
 }

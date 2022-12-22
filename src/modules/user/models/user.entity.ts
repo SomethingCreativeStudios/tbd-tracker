@@ -1,5 +1,7 @@
-import { PrimaryGeneratedColumn, Entity, Column, ManyToMany, JoinTable } from 'typeorm';
+
+import { PrimaryGeneratedColumn, Entity, Column, ManyToMany, JoinTable, ManyToOne, OneToMany } from 'typeorm';
 import { Role } from '../../role';
+import { Session } from '../../session/models/session.entity';
 
 @Entity()
 export class User {
@@ -15,4 +17,7 @@ export class User {
   @ManyToMany(type => Role, { cascade: true })
   @JoinTable()
   roles: Role[];
+
+  //@OneToMany(type => Session, session => session.user)
+  sessions: Session[];
 }

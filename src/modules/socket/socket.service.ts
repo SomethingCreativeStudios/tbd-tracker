@@ -9,4 +9,6 @@ export class SocketService {
   public subgroupSocket: Server = null;
   public subgroupRuleSocket: Server = null;
   public settingsSocket: Server = null;
+  public authSocket: Server = null;
+  public malSocket: Server = null;
 }

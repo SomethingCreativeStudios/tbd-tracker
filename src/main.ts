@@ -1,11 +1,9 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app/app.module';
 import * as tasks from './startup/tasks';
-import { TaskLoader } from './startup/TaskLoder';
+import { TaskLoader } from './startup/TaskLoader';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 require('dotenv').config();
-
-declare const module: any;
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { cors: true });
@@ -27,10 +25,5 @@ async function bootstrap() {
 
   // Run startup tasks
   await TaskLoader.loadTasks(tasks, app);
-
-  if (module.hot) {
-    module.hot.accept();
-    module.hot.dispose(() => app.close());
-  }
 }
 bootstrap();

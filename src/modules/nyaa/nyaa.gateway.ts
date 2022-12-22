@@ -1,20 +1,17 @@
-import {
-  WebSocketGateway,
-  OnGatewayInit,
-  OnGatewayConnection,
-  OnGatewayDisconnect,
-  WebSocketServer,
-  SubscribeMessage,
-  MessageBody,
-} from '@nestjs/websockets';
-import { Logger } from '@nestjs/common';
+import { WebSocketGateway, OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect, WebSocketServer, SubscribeMessage, MessageBody } from '@nestjs/websockets';
+import { Logger, UseGuards } from '@nestjs/common';
 import { Server } from 'socket.io';
 import { NyaaService, NyaaFeed } from './nyaa.service';
 import { resolve } from 'path';
 import { SeriesService } from '../series/series.service';
 import { SocketService } from '../socket/socket.service';
+import { SyncDTO } from './dto/SyncDTO';
+import { SuggestSubgroupDTO } from './dto/SuggestSubgroupDTO';
+import { DownloadDTO } from './dto/DownloadDTO';
+import { SearchNyaaDTO } from './dto/SearchNyaaDTO';
+import { SocketGuard } from '~/guards/SocketGuard';
 
-@WebSocketGateway(8180, { namespace: 'nyaa' })
+@WebSocketGateway(8180, { namespace: 'nyaa', transports: ['websocket'] })
 export class NyaaGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   constructor(private nyaaService: NyaaService, private socketService: SocketService, private seriesService: SeriesService) {}
   afterInit(server: any) {
@@ -28,35 +25,39 @@ export class NyaaGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   private logger: Logger = new Logger('NyaaGateway');
 
+  @UseGuards(SocketGuard)
   @SubscribeMessage('sync')
-  async syncSeries(@MessageBody() { id, season, year }: { id?: number; season: string; year: string }) {
-    id ? this.nyaaService.syncById(id) : this.nyaaService.syncShows(season, year);
+  async syncSeries(@MessageBody() { id, season, year }: SyncDTO) {
+    id ? this.nyaaService.syncById(id) : this.nyaaService.syncShowsCron();
     return true;
   }
 
+  @UseGuards(SocketGuard)
   @SubscribeMessage('suggest-subgroups')
-  async suggestShow(@MessageBody() { showName, altNames }: { showName: string; altNames: string[] }) {
+  async suggestShow(@MessageBody() { altNames, showName }: SuggestSubgroupDTO) {
     return this.nyaaService.suggestSubgroups(showName, altNames);
   }
 
+  @UseGuards(SocketGuard)
   @SubscribeMessage('download')
-  async downloadShow(@MessageBody() { seriesId, url, name }: { url: string; seriesId: number; name: string }) {
+  async downloadShow(@MessageBody() { seriesId, url, name }: DownloadDTO) {
     const series = await this.seriesService.findById(seriesId);
 
-    await this.nyaaService.downloadShow(
-      url,
-      resolve(process.env.BASE_FOLDER, String(series.season.year), series.season.name, series.folderPath),
-      name,
-    );
+    const overrideName = this.nyaaService.findOverrideName(series.showName, series.offset, name);
+    const downloadName = overrideName === name ? '' : overrideName;
+
+    await this.nyaaService.downloadShow(url, resolve(process.env.BASE_FOLDER, String(series.season.year), series.season.name, series.folderPath), downloadName, series.id, name);
   }
 
+  @UseGuards(SocketGuard)
   @SubscribeMessage('test-download')
   async testDownload() {
     this.nyaaService.testDownload();
   }
 
+  @UseGuards(SocketGuard)
   @SubscribeMessage('fetch')
-  async fetchQueue(@MessageBody() { search, feed, trusted = false }: { search: string; feed: NyaaFeed; trusted: boolean }) {
+  async fetchQueue(@MessageBody() { search, feed, trusted = false }: SearchNyaaDTO) {
     return this.nyaaService.searchItems(feed, search, trusted);
   }
 }

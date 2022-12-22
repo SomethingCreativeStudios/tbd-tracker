@@ -10,6 +10,12 @@ export enum WatchingStatus {
   NOT_WATCHING = 'not_watching',
 }
 
+export enum SortBy {
+  'QUEUE' = 'queue',
+  'NAME' = 'name',
+  'WATCH_STATUS' = 'watch_status',
+}
+
 @Entity()
 export class Series {
   @PrimaryGeneratedColumn()
@@ -33,7 +39,7 @@ export class Series {
   @Column()
   imageUrl: string;
 
-  @Column({ default: new Date(), type: 'date' })
+  @Column({ default: new Date(), type: 'timestamptz' })
   airingData: Date;
 
   @Column({ default: 0 })
@@ -54,21 +60,21 @@ export class Series {
   @Column({ type: 'text', default: WatchingStatus.NOT_WATCHING })
   watchStatus: WatchingStatus;
 
+  @Column({ type: 'text', default: '', nullable: true })
+  showName?: string;
+
+  @Column({ type: 'decimal', default: 0, nullable: true })
+  offset?: number;
+
   continuing: boolean = false;
 
+  @Column({ type: 'decimal', default: 0, nullable: true, name: 'mal_id' })
   malId: number;
 
-  @ManyToOne(
-    type => Season,
-    season => season.series,
-  )
+  @ManyToOne((type) => Season, (season) => season.series)
   season: Season;
 
-  @OneToMany(
-    type => SubGroup,
-    group => group.series,
-    { cascade: true },
-  )
+  @OneToMany((type) => SubGroup, (group) => group.series, { cascade: true })
   subgroups: SubGroup[];
 
   @Column({
@@ -78,4 +84,6 @@ export class Series {
     nullable: true,
   })
   showQueue: NyaaItem[];
+
+  nextAiringDate?: Date;
 }

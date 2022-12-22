@@ -14,6 +14,5 @@ export abstract class BaseTask {
   /**
    * Run the task
    */
-  public abstract async executeTask(): Promise<void>;
-
+  public abstract executeTask(): Promise<void>;
 }

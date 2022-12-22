@@ -1,23 +1,23 @@
-import {
-  WebSocketGateway,
-  OnGatewayInit,
-  OnGatewayConnection,
-  OnGatewayDisconnect,
-  WebSocketServer,
-  SubscribeMessage,
-  MessageBody,
-} from '@nestjs/websockets';
-import { Logger } from '@nestjs/common';
+import { WebSocketGateway, OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect, WebSocketServer, SubscribeMessage, MessageBody } from '@nestjs/websockets';
+import { Logger, UseGuards } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
+import { MALClient } from '@chez14/mal-api-lite';
+import pkceChallenge from 'pkce-challenge';
 import { SeriesService } from './series.service';
-import { SeasonName } from '../season/models';
-import { DeepPartial } from 'typeorm';
-import { Series } from './models';
-import { mergeDeepRight } from 'ramda';
 import { SocketService } from '../socket/socket.service';
 import { AnimeFolderService } from '../anime-folder/anime-folder.service';
+import { SearchBySeasonDTO } from './dtos/SearchBySeasonDTO';
+import { CreateBySeasonDTO } from './dtos/CreateBySeasonDTO';
+import { CreateFromMalDTO } from './dtos/CreateFromMalDTO';
+import { UpdateSeriesDTO } from './dtos/UpdateSeriesDTO';
+import { MalSearchDTO } from './dtos/MalSearchDTO';
+import { MigrateSeriesDTO } from './dtos/MigrateSeriesDTO';
+import { AuthService } from '../auth';
+import { SocketGuard } from '~/guards/SocketGuard';
+import { findLastSeason } from '../season/helpers/season-helper';
+import { SeasonName } from '../season/models';
 
-@WebSocketGateway(8180, { namespace: 'series' })
+@WebSocketGateway(8180, { namespace: 'series', transports: ['websocket'] })
 export class SeriesGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   constructor(private seriesService: SeriesService, private folderService: AnimeFolderService, private socketService: SocketService) {}
   afterInit(server: Server) {
@@ -25,7 +25,9 @@ export class SeriesGateway implements OnGatewayInit, OnGatewayConnection, OnGate
   }
 
   async handleConnection(client: Socket, ...args: any[]) {
-    client.emit('initial', await this.seriesService.findAll());
+    if (!client.handshake.auth?.token) {
+      client.disconnect();
+    }
   }
   handleDisconnect(client: any) {}
 
@@ -33,54 +35,97 @@ export class SeriesGateway implements OnGatewayInit, OnGatewayConnection, OnGate
 
   private logger: Logger = new Logger('SeriesGateway');
 
-  @SubscribeMessage('get')
-  async getAllSeries(@MessageBody() { season, year, sortBy }: { season?: string; year?: number; sortBy: '' }) {
+  @UseGuards(SocketGuard)
+  @SubscribeMessage('create-mal')
+  async createMal(@MessageBody() createModel: CreateFromMalDTO) {
+    return this.seriesService.createFromMALId(createModel);
+  }
+
+  @UseGuards(SocketGuard)
+  @SubscribeMessage('update')
+  async updateSeries(@MessageBody() updateModel: UpdateSeriesDTO) {
+    return this.seriesService.update(updateModel);
+  }
+
+  @UseGuards(SocketGuard)
+  @SubscribeMessage('get-by-it')
+  async fetchById(@MessageBody() id: number) {
+    return this.seriesService.findById(id);
+  }
+
+  @UseGuards(SocketGuard)
+  @SubscribeMessage('remove')
+  async removeSeries(@MessageBody() id: number) {
+    return this.seriesService.deleteById(id);
+  }
+
+  @UseGuards(SocketGuard)
+  @SubscribeMessage('find-by-season')
+  async getAllSeries(@MessageBody() { season, year, sortBy, hasQueue }: SearchBySeasonDTO) {
     if (!season && !year) {
       return this.seriesService.findAll();
     }
 
-    return this.seriesService.findBySeason(season, +year, sortBy as any);
+    return this.seriesService.findBySeason(season, +year, sortBy as any, hasQueue);
   }
 
+  @UseGuards(SocketGuard)
+  @SubscribeMessage('find-leftovers')
+  async getLeftOvers(@MessageBody() { season, year, sortBy }: SearchBySeasonDTO) {
+    const { season: lastSeason, year: lastYear } = findLastSeason(season as SeasonName, year + '');
+
+    return this.seriesService.findBySeason(lastSeason, +lastYear, sortBy as any, true);
+  }
+
+  @UseGuards(SocketGuard)
   @SubscribeMessage('create-season')
-  async createSeason(@MessageBody() { seasonName, seasonYear, series }: { series: Series[]; seasonName: SeasonName; seasonYear: number }) {
-    return this.seriesService.createFromSeason(series, seasonName, seasonYear);
+  async createSeason(@MessageBody() createModel: CreateBySeasonDTO) {
+    const test = await this.seriesService.createFromSeason(createModel);
+    console.log('test');
+    return test;
   }
 
-  @SubscribeMessage('create-mal')
-  async createMal(@MessageBody() { seasonName, seasonYear, malId }: { malId: number; seasonName: SeasonName; seasonYear: number }) {
-    console.log(seasonName, seasonYear);
-    return this.seriesService.createFromMALId(malId, seasonName, seasonYear);
+  @UseGuards(SocketGuard)
+  @SubscribeMessage('migrate-series')
+  async migrateSeries(@MessageBody() migrateModel: MigrateSeriesDTO) {
+    return this.seriesService.migrateSeries(migrateModel);
   }
 
-  @SubscribeMessage('mal-search')
+  @UseGuards(SocketGuard)
+  @SubscribeMessage('mal/search-name')
   async searchMAL(@MessageBody() name: string) {
     return this.seriesService.findFromMAL(name);
   }
 
-  @SubscribeMessage('season-search')
-  async findAllBySeason(@MessageBody() { season, year }: { season: SeasonName; year: number }) {
-    return this.seriesService.searchByMALSeason(season, year);
+  @UseGuards(SocketGuard)
+  @SubscribeMessage('mal/search-season')
+  async findAllBySeason(@MessageBody() searchModel: MalSearchDTO) {
+    return this.seriesService.searchByMALSeason(searchModel);
   }
 
-  @SubscribeMessage('update')
-  async updateSeries(@MessageBody() series: DeepPartial<Series>) {
-    const foundSeries = await this.seriesService.findById(series.id);
-    return this.seriesService.update(mergeDeepRight(foundSeries, series) as Series);
-  }
-
-  @SubscribeMessage('watch-status')
+  @UseGuards(SocketGuard)
+  @SubscribeMessage('toggle-watch-status')
   async updateWatchCount(@MessageBody() id: number) {
-    return this.seriesService.updateWatchStatus(id);
+    return this.seriesService.toggleWatchStatus(id);
   }
 
-  @SubscribeMessage('remove')
-  async removeSeries(@MessageBody() id: number) {
-    return this.seriesService.deketeById(id);
-  }
-
+  @UseGuards(SocketGuard)
   @SubscribeMessage('folder-names')
   async fetchFolderNames() {
-    return this.folderService.getFolders();
+    const folders = await this.folderService.getFolders();
+    console.log(folders);
+    return folders;
+  }
+
+  @UseGuards(SocketGuard)
+  @SubscribeMessage('sync-mal')
+  async syncWithMal(@MessageBody() id: number) {
+    return this.seriesService.syncWithMal(id);
+  }
+
+  @UseGuards(SocketGuard)
+  @SubscribeMessage('sync-mal-image')
+  async syncImageWithMal(@MessageBody() id: number) {
+    return this.seriesService.syncImage(id);
   }
 }

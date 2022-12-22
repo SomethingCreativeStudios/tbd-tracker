@@ -1,20 +1,38 @@
-FROM node:12.13.1
-
-RUN npm install webpack -g
-
-RUN apt-get update -qq && apt-get install -y yarn
+FROM node:16.10 AS BUILD_IMAGE
 
 # Create app directory
 WORKDIR /src/app
 
-# Install app dependencies
-# A wildcard is used to ensure both package.json AND package-lock.json are copied
-# where available (npm@5+)
-COPY package*.json ./
-
+COPY package.json yarn.lock ./
 
 COPY . .
 
+# install dependencies
+RUN yarn --frozen-lockfile
+
+RUN yarn build
+
+RUN rm -r ./node_modules && yarn --frozen-lockfile --production=true
+
+
+# remove development dependencies
+
+FROM node:16.10
+
+WORKDIR /src/app
+
+# copy from build image
+COPY --from=BUILD_IMAGE /src/app/dist ./dist
+COPY --from=BUILD_IMAGE /src/app/node_modules ./node_modules
+COPY --from=BUILD_IMAGE /src/app/src ./src
+COPY --from=BUILD_IMAGE /src/app/package.json ./package.json
+
+ENV TZ="America/New_York"
+
+RUN apt-get update -qq
+
+RUN yarn global add typeorm && rm -rf /etc/localtime && ln -s /usr/share/zoneinfo/America/New_York /etc/localtime
+
 EXPOSE 3000
 
-CMD yarn start:prod
+CMD [ "yarn", "start:docker" ]

@@ -1,8 +1,10 @@
-import { JwtService } from '@nestjs/jwt';
-import { Injectable } from '@nestjs/common';
-import { JwtPayload } from './models/JwtPayload';
+import { CACHE_MANAGER, forwardRef, Inject, Injectable } from '@nestjs/common';
+import { Cache } from 'cache-manager';
+import { sync as createId } from 'uid-safe';
 import { AccessToken } from './interfaces/interfaces';
 import { RoleName } from '../../decorators/RolesDecorator';
+import { UserService } from '../user/user.service';
+import { AuthUser } from './interfaces/auth-user.interface';
 
 /**
  @typedef accessToken
@@ -13,25 +15,33 @@ import { RoleName } from '../../decorators/RolesDecorator';
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    @Inject(forwardRef(() => UserService))
+    private userService: UserService,
 
-  /**
-   * Create new JWT token
-   * @param roleNames Roles the token allows
-   * @param expiresIn How long is the token valid for
-   * @returns {accessToken} object with token
-   */
-  async createToken(roleNames: RoleName[], expiresIn: number): Promise<AccessToken> {
-    const user: JwtPayload = { roles: roleNames };
-    const accessToken = this.jwtService.sign(user, {
-      expiresIn,
-    });
+    @Inject(CACHE_MANAGER)
+    private cacheManager: Cache
+  ) { }
+
+  async createSessionId(roleNames: RoleName[]): Promise<AccessToken> {
+    const sessionId = createId(24);
+
+    // set each token for 2 weeks
+    // ttl is in seconds
+    await this.cacheManager.set(`sess:${sessionId}`, { roleNames } as AuthUser, 86400 * 14);
+
     return {
-      accessToken,
+      accessToken: sessionId,
+      roles: roleNames,
     };
   }
 
-  async validateUser(payload: JwtPayload): Promise<any> {
-    return true;
+  async validateUser(username: string, password: string) {
+    const user = await this.userService.findByUsername(username);
+    if (user && (await this.userService.samePassword(user, password))) {
+      return user;
+    }
+
+    return null;
   }
 }
