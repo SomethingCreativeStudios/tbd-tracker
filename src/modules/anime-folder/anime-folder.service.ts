@@ -23,8 +23,8 @@ export class AnimeFolderService {
   ) {}
 
   public async getCurrentFolder(season?: string, year?: string) {
-    const currentYear = year || (await this.settingsService.findByKey('currentYear')).value;
-    const currentSeason = season || (await this.settingsService.findByKey('currentSeason')).value;
+    const currentYear = year || (await this.settingsService.findByKey('currentYear'))?.value || "2022";
+    const currentSeason = season || (await this.settingsService.findByKey('currentSeason'))?.value || "winter";
 
     return join(this.configService.baseFolder, currentYear, currentSeason as any);
   }

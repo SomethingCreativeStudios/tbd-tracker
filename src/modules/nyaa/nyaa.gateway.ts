@@ -46,13 +46,13 @@ export class NyaaGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     const overrideName = this.nyaaService.findOverrideName(series.showName, series.offset, name);
     const downloadName = overrideName === name ? '' : overrideName;
 
-    await this.nyaaService.downloadShow(url, resolve(process.env.BASE_FOLDER, String(series.season.year), series.season.name, series.folderPath), downloadName, series.id, name);
+    await this.nyaaService.downloadShow(url, resolve(process.env.BASE_FOLDER, String(series.season.year), series.season.name, series.folderPath), downloadName, name, series.id);
   }
 
   @UseGuards(SocketGuard)
   @SubscribeMessage('test-download')
   async testDownload() {
-    this.nyaaService.testDownload();
+    //this.nyaaService.testDownload();
   }
 
   @UseGuards(SocketGuard)

@@ -28,6 +28,6 @@ export class MalGateway implements OnGatewayInit {
   @UseGuards(SocketGuard)
   @SubscribeMessage('login')
   async login(@MessageBody() { authCode, codeVerifier }: { authCode: string, codeVerifier: string }) {
-    this.malService.getAuthToken(authCode, codeVerifier);
+   return this.malService.getAuthToken(authCode, codeVerifier);
   }
 }

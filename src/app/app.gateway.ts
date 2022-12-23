@@ -2,11 +2,11 @@ import { WebSocketGateway, OnGatewayInit, OnGatewayConnection, OnGatewayDisconne
 import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { SocketService } from '../modules/socket/socket.service';
-import { NyaaService } from '../modules/nyaa/nyaa.service';
+import { TorrentService } from '~/modules/torrent/torrent.service';
 
 @WebSocketGateway(8180, { transports: ['websocket'] })
 export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
-  constructor(private socketService: SocketService, private nyaaService: NyaaService) {}
+  constructor(private socketService: SocketService, private torrentService: TorrentService) {}
 
   @WebSocketServer() public server: Server;
 
@@ -21,11 +21,11 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
     this.logger.log(`Client disconnected: ${client.id}`);
   }
 
-  handleConnection(client: Socket, ...args: any[]) {
+  handleConnection(client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);
 
     setTimeout(() => {
-      this.nyaaService.onConnect(client);
+      this.torrentService.onConnect(client);
     }, 1000);
   }
 }
