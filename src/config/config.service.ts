@@ -34,7 +34,10 @@ export class ConfigService {
       BASE_FOLDER: Joi.string().required(),
       MAL_CLIENT_ID: Joi.string(),
       MAL_CLIENT_SECRET: Joi.string(),
-      MAL_REDIRECT_URL: Joi.string().default('localhost:8080')
+      MAL_REDIRECT_URL: Joi.string().default('localhost:8080'),
+      MOVIE_API_KEY: Joi.string().required(),
+      BASE_TV_SHOW_FOLDER: Joi.string().required(),
+      BASE_MOVIE_FOLDER: Joi.string().required(),
     }).unknown(true);
 
     const { error, value } = envVarsSchema.validate(envConfig);
@@ -72,6 +75,18 @@ export class ConfigService {
     return String(this.envConfig.BASE_FOLDER);
   }
 
+  get baseMovieFolder(): string {
+    return String(this.envConfig.BASE_MOVIE_FOLDER);
+  }
+
+  get baseTVShowFolder(): string {
+    return String(this.envConfig.BASE_TV_SHOW_FOLDER);
+  }
+
+  get movieAPIKey(): string {
+    return String(this.envConfig.MOVIE_API_KEY);
+  }
+
   get defaultPasswords(): DefaultPasswords {
     return {
       admin: String(this.envConfig.ADMIN_PASSWORD),
@@ -85,7 +100,6 @@ export class ConfigService {
       host: String(this.envConfig.REDIS_HOST),
     };
   }
-
 
   get malConfig() {
     return {

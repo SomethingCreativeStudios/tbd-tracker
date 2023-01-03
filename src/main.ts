@@ -3,6 +3,8 @@ import { AppModule } from './app/app.module';
 import * as tasks from './startup/tasks';
 import { TaskLoader } from './startup/TaskLoader';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { PirateScrapper } from './modules/scrapers/pirate.scraper';
+import { MediaService } from './modules/media/media.service';
 require('dotenv').config();
 
 async function bootstrap() {
@@ -25,5 +27,13 @@ async function bootstrap() {
 
   // Run startup tasks
   await TaskLoader.loadTasks(tasks, app);
+
+  const service = await app.get(MediaService);
+
+  //const results = await PirateScrapper.search('top100:48h_207');
+
+  //console.log(await service.find(results[0].parsedName));
+
+  //console.log(await PirateScrapper.search('top100:48h_207'));
 }
 bootstrap();

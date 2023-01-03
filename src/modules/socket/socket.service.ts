@@ -12,4 +12,6 @@ export class SocketService {
   public authSocket: Server = null;
   public malSocket: Server = null;
   public torrentSocket: Server = null;
+  public fileSocket: Server = null;
+  public movieSocket: Server = null;
 }

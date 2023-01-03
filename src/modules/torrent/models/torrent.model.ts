@@ -97,3 +97,9 @@ export interface QueuedPayload {
 export interface TorrentEvents {
   onDone: (id: string) => void;
 }
+
+export interface DirectDownloadMessage {
+  path: string;
+  url: string;
+  fileName: string;
+}

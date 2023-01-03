@@ -46,7 +46,47 @@ export class TorrentService {
     });
   }
 
-  public async download(torrentName: string, downloadPath: string, fileName: string, queuedName: string, events: TorrentEvents, id: string = uuidv4()) {
+  public async testDownload() {
+    const progres = [0, 0, 0];
+
+    const testTorrents = [
+      { name: 'Test Name 1', id: '222222', hash: uuidv4() },
+      { name: 'Test Name 2', id: '333333', hash: uuidv4() },
+      { name: 'Test Name 3', id: '444444', hash: uuidv4() },
+    ];
+
+    testTorrents.forEach((torrent) => {
+      this.emitInitDownloading({ hash: torrent.hash, value: { name: torrent.name, id: torrent.id, url: 'test', queued: false } });
+    });
+
+    this.waitFor(1000);
+
+    while (!progres.every((prog) => prog >= 100)) {
+      await this.waitFor(300);
+      const index = this.random(0, 3);
+      progres[index] += this.random(1, 100 - progres[index]);
+
+      this.emitDownloading({
+        hash: testTorrents[index].hash,
+        value: {
+          name: testTorrents[index].name,
+          justDownloaded: 100,
+          totalDownloaded: progres[index],
+          speed: 300,
+          progress: progres[index],
+          timeLeft: this.millisecondsToTime(2000),
+          ratio: '2',
+          id: testTorrents[index].id,
+        },
+      });
+
+      if (progres[index] >= 100) {
+        this.emitDownloaded({ hash: testTorrents[index].hash, id: testTorrents[index].id, name: testTorrents[index].name });
+      }
+    }
+  }
+
+  public async download(torrentName: string, downloadPath: string, fileName: string, queuedName: string, events: TorrentEvents = null, id: string = uuidv4()) {
     this.logger.log(`Adding ${torrentName}`);
     const realName = fileName || queuedName;
 
@@ -119,7 +159,7 @@ export class TorrentService {
       this.downloading = this.downloading.filter((tor) => tor.url === url);
       setTimeout(() => torrent.destroy(), 100);
 
-      events.onDone ? events.onDone(id) : null;
+      events?.onDone ? events.onDone(id) : null;
 
       const next = this.queued.shift();
 
@@ -169,5 +209,17 @@ export class TorrentService {
     var minutes = Math.floor((milli / (60 * 1000)) % 60) ? Math.floor((milli / (60 * 1000)) % 60) + ' minutes ' : '';
 
     return minutes + seconds;
+  }
+
+  private async waitFor(time: number) {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(() => {});
+      }, time);
+    });
+  }
+
+  private random(min: number, max: number) {
+    return Math.round(Math.random() * max) + min;
   }
 }

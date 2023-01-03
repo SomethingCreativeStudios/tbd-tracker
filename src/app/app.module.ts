@@ -23,6 +23,9 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { GlobalCacheModule } from '../modules/global-cache/global-cache.module';
 import { MalModule } from '../modules/mal/mal.module';
 import { TorrentModule } from '../modules/torrent/torrent.module';
+import { FileModule } from '../modules/file';
+import { MediaModule } from '../modules/media/media.module';
+import { MovieModule } from '../modules/movies';
 
 @Module({
   imports: [
@@ -42,6 +45,9 @@ import { TorrentModule } from '../modules/torrent/torrent.module';
     GlobalCacheModule,
     MalModule,
     TorrentModule,
+    FileModule,
+    MediaModule,
+    MovieModule,
     ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
       useClass: TypeOrmOptions,
