@@ -12,7 +12,7 @@ export enum SourceLocation {
 
 @Injectable()
 export class MovieService {
-  constructor(private readonly mediaService: MediaService, private readonly socketService: SocketService) {}
+  constructor(private readonly mediaService: MediaService, private readonly socketService: SocketService) { }
 
   async find(query: string, source = SourceLocation.THE_PIRATE_BAY): Promise<MediaCollection[]> {
     const foundMedia = [] as MediaCollection[];
@@ -27,6 +27,7 @@ export class MovieService {
         collection.link = item.magUrl;
         collection.name = item.name;
         collection.parsedName = item.parsedName;
+        collection.parsedResolution = this.findResolution(item.name);
         collection.items = [];
         foundMedia.push(collection);
 
@@ -48,10 +49,26 @@ export class MovieService {
     const message = ({ link, items }) => {
       this.socketService.movieSocket.emit('updated-meta', { link, items });
     };
-    
+
     chunked.forEach((chunk) => {
       const worker = new Worker('./worker/media-search.js', { workerData: { data: chunk } });
       worker.on('message', message);
     });
+  }
+
+  private findResolution(title: string) {
+    if (title.includes('1080')) {
+      return '1080';
+    }
+
+    if (title.includes('720')) {
+      return '720';
+    }
+
+    if (title.includes('480')) {
+      return '480';
+    }
+
+    return 'NOT_FOUND';
   }
 }
