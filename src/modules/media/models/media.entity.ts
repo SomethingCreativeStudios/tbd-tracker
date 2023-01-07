@@ -12,7 +12,6 @@ export class MediaCollection {
   parsedResolution: '720' | '1080' | '480' | 'NOT_FOUND';
   parsedName: string;
 }
-
 @Entity()
 export class MediaItem {
   @PrimaryGeneratedColumn()

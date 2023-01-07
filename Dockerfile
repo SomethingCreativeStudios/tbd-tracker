@@ -31,6 +31,11 @@ ENV TZ="America/New_York"
 
 RUN apt-get update -qq
 
+RUN echo "deb http://ftp.us.debian.org/debian buster main non-free" >> /etc/apt/sources.list.d/fonts.list
+
+RUN npx playwright install-deps
+RUN npx playwright install
+
 RUN yarn global add typeorm && rm -rf /etc/localtime && ln -s /usr/share/zoneinfo/America/New_York /etc/localtime
 
 EXPOSE 3000

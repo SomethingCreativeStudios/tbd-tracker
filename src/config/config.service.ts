@@ -38,6 +38,12 @@ export class ConfigService {
       MOVIE_API_KEY: Joi.string().required(),
       BASE_TV_SHOW_FOLDER: Joi.string().required(),
       BASE_MOVIE_FOLDER: Joi.string().required(),
+
+      PLEX_TOKEN: Joi.string().required(),
+      PLEX_MOVIES: Joi.number().required(),
+      PLEX_ANIME: Joi.number().required(),
+      PLEX_TV_SHOWS: Joi.number().required(),
+      PLEX_URL: Joi.string().required(),
     }).unknown(true);
 
     const { error, value } = envVarsSchema.validate(envConfig);
@@ -106,6 +112,16 @@ export class ConfigService {
       clientId: String(this.envConfig.MAL_CLIENT_ID),
       clientSecret: String(this.envConfig.MAL_CLIENT_SECRET),
       redirectUrl: String(this.envConfig.MAL_REDIRECT_URL),
+    };
+  }
+
+  get plexConfig() {
+    return {
+      accessToken: String(this.envConfig.PLEX_TOKEN),
+      movieLibrary: Number(this.envConfig.PLEX_MOVIES),
+      tvShowLibrary: Number(this.envConfig.PLEX_TV_SHOWS),
+      animeLibrary: Number(this.envConfig.PLEX_ANIME),
+      plexUrl: String(this.envConfig.PLEX_URL),
     };
   }
 }

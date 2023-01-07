@@ -26,6 +26,7 @@ import { TorrentModule } from '../modules/torrent/torrent.module';
 import { FileModule } from '../modules/file';
 import { MediaModule } from '../modules/media/media.module';
 import { MovieModule } from '../modules/movies';
+import { PlexModule } from '../modules/plex';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { MovieModule } from '../modules/movies';
     FileModule,
     MediaModule,
     MovieModule,
+    PlexModule,
     ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
       useClass: TypeOrmOptions,

@@ -98,8 +98,13 @@ export interface TorrentEvents {
   onDone: (id: string) => void;
 }
 
+export enum MediaType {
+  MOVIE = 'movie',
+  TV_SHOW = 'tv-show',
+}
+
 export interface DirectDownloadMessage {
-  path: string;
+  type: MediaType;
   url: string;
   fileName: string;
 }

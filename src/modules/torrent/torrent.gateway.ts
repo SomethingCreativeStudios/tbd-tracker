@@ -1,15 +1,17 @@
 import { UseGuards } from '@nestjs/common';
 import { WebSocketGateway, OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect, WebSocketServer, SubscribeMessage, MessageBody } from '@nestjs/websockets';
 import { Server } from 'socket.io';
+import { ConfigService } from '~/config';
 import { SocketGuard } from '~/guards/SocketGuard';
+import { LibraryType, PlexService } from '../plex';
 
 import { SocketService } from '../socket/socket.service';
-import { DirectDownloadMessage } from './models/torrent.model';
+import { DirectDownloadMessage, MediaType } from './models/torrent.model';
 import { TorrentService } from './torrent.service';
 
 @WebSocketGateway(8180, { namespace: 'torrent', transports: ['websocket'] })
 export class TorrentGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
-  constructor(private torrentService: TorrentService, private socketService: SocketService) {}
+  constructor(private torrentService: TorrentService, private plexService: PlexService, private configService: ConfigService, private socketService: SocketService) {}
   afterInit(server: any) {
     this.socketService.torrentSocket = server;
   }
@@ -27,7 +29,12 @@ export class TorrentGateway implements OnGatewayInit, OnGatewayConnection, OnGat
 
   @UseGuards(SocketGuard)
   @SubscribeMessage('direct-download')
-  async directDownload(@MessageBody() { fileName, path, url }: DirectDownloadMessage) {
-    this.torrentService.download(url, path, fileName, null);
+  async directDownload(@MessageBody() { fileName, type, url }: DirectDownloadMessage) {
+    this.torrentService.download(url, type === MediaType.MOVIE ? this.configService.baseMovieFolder : this.configService.baseTVShowFolder, fileName, null, {
+      onDone: () => {
+        this.plexService.refresh(LibraryType.MOVIE);
+        this.plexService.refresh(LibraryType.TV_SHOW);
+      },
+    });
   }
 }

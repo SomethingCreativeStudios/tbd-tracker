@@ -14,4 +14,5 @@ export class SocketService {
   public torrentSocket: Server = null;
   public fileSocket: Server = null;
   public movieSocket: Server = null;
+  public plexSocket: Server = null;
 }

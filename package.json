@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@chez14/mal-api-lite": "^1.1.0",
+    "@nestjs/axios": "^1.0.1",
     "@nestjs/common": "9.1.4",
     "@nestjs/core": "9.1.4",
     "@nestjs/jwt": "9.0.0",
