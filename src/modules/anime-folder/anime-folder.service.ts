@@ -20,7 +20,7 @@ export class AnimeFolderService {
 
     @Inject(forwardRef(() => SeriesService))
     private readonly seriesService: SeriesService,
-  ) {}
+  ) { }
 
   public async getCurrentFolder(season?: string, year?: string) {
     const currentYear = year || (await this.settingsService.findByKey('currentYear'))?.value || "2022";
@@ -37,7 +37,7 @@ export class AnimeFolderService {
     const currentPath = await this.getCurrentFolder();
 
     ensureDirSync(currentPath);
-    console.log(currentPath, readdirSync(currentPath, { withFileTypes: true }));
+
     return readdirSync(currentPath, { withFileTypes: true })
       .filter((dirent) => dirent.isDirectory())
       .map((dirent) => dirent.name);

@@ -32,6 +32,7 @@ export class SettingsGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   @UseGuards(SocketGuard)
   @SubscribeMessage('search')
   async find(searchModel: FindSettingDTO) {
+    console.log('Looking for settings');
     return this.settingService.find(searchModel);
   }
 

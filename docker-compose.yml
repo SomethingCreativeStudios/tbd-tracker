@@ -1,6 +1,9 @@
 version: '3'
 
 services:
+  redis:
+    image: redis:latest
+    command: redis-server --appendonly yes
   tbd-backend:
     image: ericlo417/tbd-tracker-backend
     container_name: tbd-backend
@@ -8,4 +11,6 @@ services:
     ports: 
       - 8180:8180
     volumes:
-      - ~/Users/Eric/Currently Airing:/temp/ca
+      - Y:\Currently Airing:/temp/ca
+      - Z:\western-shows:/temp/tvshows
+      - Z:\movies:/temp/movies

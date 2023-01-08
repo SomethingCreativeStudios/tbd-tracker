@@ -68,24 +68,25 @@ class PirateScrapper implements BaseScrapper {
       return eles
         .map(
           (ele) =>
-            ({
-              name: ele.querySelector('.item-title a').textContent,
-              category: ele.querySelector('.item-type').textContent,
-              parsedName: ele.querySelector('.item-title a').textContent,
-              uploadedDate: new Date(ele.querySelector('.item-uploaded label').textContent),
-              //@ts-ignore
-              magUrl: ele.querySelector('.item-icons a').href,
-              size: ele.querySelector('.item-size')?.textContent,
-              torrentUrl: '',
-              ratio: {
-                leechers: Number.parseInt(ele.querySelector('.item-leech')?.textContent),
-                seeders: Number.parseInt(ele.querySelector('.item-seed')?.textContent),
-              },
-            } as ParsedItem),
+          ({
+            name: ele.querySelector('.item-title a').textContent,
+            category: ele.querySelector('.item-type').textContent,
+            parsedName: ele.querySelector('.item-title a').textContent,
+            uploadedDate: new Date(ele.querySelector('.item-uploaded label').textContent),
+            //@ts-ignore
+            magUrl: ele.querySelector('.item-icons a').href,
+            size: ele.querySelector('.item-size')?.textContent,
+            torrentUrl: '',
+            ratio: {
+              leechers: Number.parseInt(ele.querySelector('.item-leech')?.textContent),
+              seeders: Number.parseInt(ele.querySelector('.item-seed')?.textContent),
+            },
+          } as ParsedItem),
         )
         .filter((item) => item.category.includes('Movies'));
     });
   }
+
 }
 
 const service = new PirateScrapper();

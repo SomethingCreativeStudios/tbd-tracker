@@ -4,7 +4,7 @@ import { ConfigService } from '../src/config/config.service';
 import { writeFileSync } from 'fs';
 
 let type = null;
-console.log(process.argv);
+
 if (process.argv[2] === 'test') {
   type = new TestTypeOrmOptions(new ConfigService());
 } else {

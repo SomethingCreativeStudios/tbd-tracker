@@ -27,13 +27,5 @@ async function bootstrap() {
 
   // Run startup tasks
   await TaskLoader.loadTasks(tasks, app);
-
-  const service = await app.get(MediaService);
-
-  //const results = await PirateScrapper.search('top100:48h_207');
-
-  //console.log(await service.find(results[0].parsedName));
-
-  //console.log(await PirateScrapper.search('top100:48h_207'));
 }
 bootstrap();

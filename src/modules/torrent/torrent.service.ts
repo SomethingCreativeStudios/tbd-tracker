@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import WebTorrent from 'webtorrent';
 import { Socket } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
+import { throttle } from 'throttle-debounce';
 
 import { SocketService } from '../socket/socket.service';
 import {
@@ -47,7 +48,7 @@ export class TorrentService {
   }
 
   public async testDownload() {
-    const progres = [0, 0, 0];
+    const progress = [0, 0, 0];
 
     const testTorrents = [
       { name: 'Test Name 1', id: '222222', hash: uuidv4() },
@@ -61,26 +62,26 @@ export class TorrentService {
 
     this.waitFor(1000);
 
-    while (!progres.every((prog) => prog >= 100)) {
+    while (!progress.every((prog) => prog >= 100)) {
       await this.waitFor(300);
       const index = this.random(0, 3);
-      progres[index] += this.random(1, 100 - progres[index]);
+      progress[index] += this.random(1, 100 - progress[index]);
 
       this.emitDownloading({
         hash: testTorrents[index].hash,
         value: {
           name: testTorrents[index].name,
           justDownloaded: 100,
-          totalDownloaded: progres[index],
+          totalDownloaded: progress[index],
           speed: 300,
-          progress: progres[index],
+          progress: progress[index],
           timeLeft: this.millisecondsToTime(2000),
           ratio: '2',
           id: testTorrents[index].id,
         },
       });
 
-      if (progres[index] >= 100) {
+      if (progress[index] >= 100) {
         this.emitDownloaded({ hash: testTorrents[index].hash, id: testTorrents[index].id, name: testTorrents[index].name });
       }
     }
@@ -94,8 +95,6 @@ export class TorrentService {
       this.logger.warn('Cannot add dups');
       return;
     }
-
-    this.logger.log(`Downloading ${realName} to ${downloadPath}`);
 
     if (this.downloading.length > 5) {
       this.logger.log(`Queued ${realName}`);
@@ -111,7 +110,7 @@ export class TorrentService {
   private startDownload(fileName: string, downloadPath: string, url: string, id: string, events: TorrentEvents) {
     this.downloading.push({ name: fileName, hash: '', path: downloadPath, intervalId: null, id, url, fileName });
 
-    this.client.add(url, { path: downloadPath, maxWebConns: 100 }, (torrent) => {
+    this.client.add(url, { path: downloadPath, maxWebConns: 200 }, (torrent) => {
       const realName = fileName || torrent.name;
       this.logger.log(`Client is downloading ${realName}`);
 
@@ -120,31 +119,31 @@ export class TorrentService {
 
       this.torrentDone(torrent, realName, id, url, downloadPath, !!fileName, events);
       this.torrentError(torrent);
+      this.torrentDownload(torrent, realName, id);
       this.torrentReady(torrent, realName, id);
-
-      this.downloading = this.downloading.map((tor) => {
-        if (tor.url !== url) return tor;
-        const interval = setInterval(
-          () =>
-            this.emitDownloading({
-              hash: torrent.infoHash,
-              value: {
-                name: realName,
-                justDownloaded: 100,
-                totalDownloaded: torrent.downloaded,
-                speed: torrent.downloadSpeed,
-                progress: torrent.progress,
-                timeLeft: this.millisecondsToTime(torrent.timeRemaining),
-                ratio: torrent.ratio,
-                id,
-              },
-            }),
-          1000,
-        );
-
-        return { ...tor, intervalId: interval };
-      });
     });
+  }
+
+  private torrentDownload(torrent: any, name: string, id: string) {
+    const debounceThing = throttle(1000, () => {
+      if (torrent.progress === 1) { return; }
+
+      this.emitDownloading({
+        hash: torrent.infoHash,
+        value: {
+          name,
+          id,
+          justDownloaded: 100,
+          totalDownloaded: torrent.downloaded,
+          speed: torrent.downloadSpeed,
+          progress: torrent.progress,
+          timeLeft: this.millisecondsToTime(torrent.timeRemaining),
+          ratio: torrent.ratio,
+        },
+      })
+    });
+
+    torrent.on('download', debounceThing);
   }
 
   private torrentDone(torrent: any, name: string, id: string, url: string, downloadPath: string, isOverrideName: boolean, events: TorrentEvents) {
@@ -155,7 +154,6 @@ export class TorrentService {
         rename(join(downloadPath, torrent.name), join(downloadPath, name));
       }
 
-      const found = this.downloading.find((tor) => tor.url === url);
       this.downloading = this.downloading.filter((tor) => tor.url === url);
       setTimeout(() => torrent.destroy(), 100);
 
@@ -167,7 +165,6 @@ export class TorrentService {
         this.startDownload(next.fileName, next.fileName, next.url, next.id, events);
       }
 
-      clearInterval(found.intervalId);
     });
   }
 
@@ -214,7 +211,7 @@ export class TorrentService {
   private async waitFor(time: number) {
     return new Promise((resolve) => {
       setTimeout(() => {
-        resolve(() => {});
+        resolve(() => { });
       }, time);
     });
   }

@@ -40,8 +40,6 @@ export class AuthGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   async validateToken(@MessageBody() { token }: { token: string }) {
     const found = await this.cacheManager.get(`sess:${token}`);
 
-    console.log(found);
-
     return !!found;
   }
 }
