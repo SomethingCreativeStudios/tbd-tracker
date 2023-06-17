@@ -38,6 +38,7 @@ export class ConfigService {
       MOVIE_API_KEY: Joi.string().required(),
       BASE_TV_SHOW_FOLDER: Joi.string().required(),
       BASE_MOVIE_FOLDER: Joi.string().required(),
+      ENABLE_SYNC: Joi.boolean().default(true),
 
       PLEX_TOKEN: Joi.string().required(),
       PLEX_MOVIES: Joi.number().required(),
@@ -55,6 +56,10 @@ export class ConfigService {
 
   get secretKey(): string {
     return String(this.envConfig.SECRET_KEY);
+  }
+
+  get enableSync(): boolean {
+    return Boolean(this.envConfig.ENABLE_SYNC);
   }
 
   get databaseHostName(): string {

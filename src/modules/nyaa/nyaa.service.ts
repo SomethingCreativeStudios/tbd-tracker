@@ -19,6 +19,7 @@ import { AnimeFolderService } from '../anime-folder/anime-folder.service';
 import { RuleType, SubGroupRule } from '../sub-group-rule/models';
 import { findLastSeason } from '../season/helpers/season-helper';
 import { TorrentService } from '../torrent/torrent.service';
+import { ConfigService } from '~/config';
 
 @Injectable()
 export class NyaaService {
@@ -31,7 +32,8 @@ export class NyaaService {
     private readonly settingsService: SettingsService,
     private readonly folderService: AnimeFolderService,
     private readonly torrentService: TorrentService,
-  ) {}
+    private readonly configService: ConfigService
+  ) { }
 
   public findOverrideName(showName: string, offset: number, currentName: string) {
     if (!showName && !offset) {
@@ -121,8 +123,9 @@ export class NyaaService {
     return validSubgroups.some((group) => this.subgroupService.matchesSubgroup(item.itemName.trim(), group));
   }
 
-  @Cron(CronExpression.EVERY_HOUR)
-  public async syncShowsCron() {
+
+
+  public async syncCurrentShows() {
     const defaultSeason = (await this.settingsService.findByKey('currentSeason')).value;
     const defaultYear = (await this.settingsService.findByKey('currentYear')).value;
 
@@ -224,6 +227,15 @@ export class NyaaService {
     await this.waitFor(400);
   }
 
+  @Cron(CronExpression.EVERY_HOUR)
+  private async syncShowsCron() {
+    if (!this.configService.enableSync) {
+      return;
+    }
+
+    await this.syncCurrentShows();
+  }
+
   private findSearchItems({ subgroups = [] }: Series) {
     return subgroups.reduce((acc, subgroup) => {
       const { rules = [] } = subgroup;
@@ -279,7 +291,7 @@ export class NyaaService {
   public async waitFor(time: number) {
     return new Promise((resolve) => {
       setTimeout(() => {
-        resolve(() => {});
+        resolve(() => { });
       }, time);
     });
   }

@@ -8,10 +8,11 @@ import { SocketModule } from '../socket/socket.module';
 import { AnimeFolderModule } from '../anime-folder/anime-folder.module';
 import { GlobalCacheModule } from '../global-cache/global-cache.module';
 import { TorrentModule } from '../torrent/torrent.module';
+import { ConfigModule } from '~/config';
 
 @Module({
-  imports: [SubgroupModule, forwardRef(() => SeriesModule), TorrentModule, SettingsModule, AnimeFolderModule, GlobalCacheModule, SocketModule],
+  imports: [SubgroupModule, forwardRef(() => SeriesModule), ConfigModule, TorrentModule, SettingsModule, AnimeFolderModule, GlobalCacheModule, SocketModule],
   providers: [NyaaService, NyaaGateway],
   exports: [NyaaService],
 })
-export class NyaaModule {}
+export class NyaaModule { }

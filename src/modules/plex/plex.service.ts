@@ -36,6 +36,10 @@ export class PlexService {
 
   @Cron(CronExpression.EVERY_HOUR)
   private async refreshSync() {
+    if (!this.configService.enableSync) {
+      return;
+    }
+
     console.log('Syncing Plex');
     await this.refresh(LibraryType.MOVIE);
     await this.refresh(LibraryType.TV_SHOW);
