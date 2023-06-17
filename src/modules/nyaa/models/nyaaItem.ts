@@ -5,4 +5,6 @@ export class NyaaItem {
   publishedDate: Date;
   resolution: string;
   episodeName: number;
+  isTrusted: boolean;
+  isRemake: boolean;
 }

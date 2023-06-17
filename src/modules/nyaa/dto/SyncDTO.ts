@@ -11,3 +11,8 @@ export class SyncDTO {
   @IsString()
   year: string;
 }
+
+export class IgnoreItemDTO {
+  @IsString()
+  link: string;
+}

@@ -20,10 +20,12 @@ import { RuleType, SubGroupRule } from '../sub-group-rule/models';
 import { findLastSeason } from '../season/helpers/season-helper';
 import { TorrentService } from '../torrent/torrent.service';
 import { ConfigService } from '~/config';
+import { IgnoreLink } from '../ignore-link/models/ignore-link.entity';
+import { SuggestedSubgroupDTO } from './dto/SuggestedSubgroupDTO';
 
 @Injectable()
 export class NyaaService {
-  private parser: Parser = new Parser();
+  private parser: Parser = new Parser({ customFields: { item: ['nyaa:trusted', 'nyaa:remake'] } });
 
   constructor(
     private readonly subgroupService: SubGroupService,
@@ -32,25 +34,25 @@ export class NyaaService {
     private readonly settingsService: SettingsService,
     private readonly folderService: AnimeFolderService,
     private readonly torrentService: TorrentService,
-    private readonly configService: ConfigService
-  ) { }
+    private readonly configService: ConfigService,
+  ) {}
 
-  public findOverrideName(showName: string, offset: number, currentName: string) {
+  public findOverrideName(showName: string, offset: number, currentName: string, regex = '') {
     if (!showName && !offset) {
       return currentName;
     }
 
-    const epNumber = this.findCount(currentName) + (offset || 0);
+    const epNumber = this.findCount(currentName, regex) + (offset || 0);
     const subgroup =
       currentName
         .match(/\[(.*?)\]/g)?.[0]
         ?.replace('[', '')
         .replace(']', '') ?? '';
 
-    return showName ? `[${subgroup}] ${showName} - ${epNumber}.mkv` : currentName.replace(`- ${this.findCount(currentName)}`, `- ${epNumber}`);
+    return showName ? `[${subgroup}] ${showName} - ${epNumber}.mkv` : currentName.replace(`- ${this.findCount(currentName, regex)}`, `- ${epNumber}`);
   }
 
-  public async searchItems(feed: NyaaFeed, searchTerm: string, onlyTrusted = false): Promise<NyaaItem[]> {
+  public async searchItems(feed: NyaaFeed, searchTerm: string, epCountRegex = '', onlyTrusted = false): Promise<NyaaItem[]> {
     try {
       const trusted = onlyTrusted ? '&f=2' : '';
       const query = `&q=${encodeURI(searchTerm)}`;
@@ -64,7 +66,9 @@ export class NyaaService {
           downloadLink: item.link,
           publishedDate: new Date(item.isoDate),
           itemName: item.title.replace(':', ''),
-          episodeName: this.findCount(item.title),
+          episodeName: this.findCount(item.title, epCountRegex),
+          isRemake: item['nyaa:remake'] === 'Yes',
+          isTrusted: item['nyaa:trusted'] === 'Yes',
           subGroupName:
             item.title
               .match(/\[(.*?)\]/g)?.[0]
@@ -94,6 +98,8 @@ export class NyaaService {
           publishedDate: new Date(item.isoDate),
           itemName: item.title,
           episodeName: this.findCount(item.title),
+          isRemake: item['nyaa:remake'] === 'Yes',
+          isTrusted: item['nyaa:trusted'] === 'Yes',
           subGroupName:
             item.title
               .match(/\[(.*?)\]/g)?.[0]
@@ -109,21 +115,23 @@ export class NyaaService {
     return [];
   }
 
-  public findValidItems(items: NyaaItem[], groups: SubGroup[]) {
-    return items.filter((item) => this.isValidItem(item, groups));
+  public findValidItems(items: NyaaItem[], groups: SubGroup[], ignoreLinks: IgnoreLink[]) {
+    return items.filter((item) => this.isValidItem(item, groups, ignoreLinks));
   }
 
-  public isValidItem(item: NyaaItem, groups: SubGroup[]) {
+  public isValidItem(item: NyaaItem, groups: SubGroup[], ignoreLinks: IgnoreLink[]) {
     const validSubgroups = groups.filter((group) => group.name.trim().toLowerCase() === item.subGroupName.trim().toLowerCase());
 
     if (validSubgroups.length === 0) {
       return false;
     }
 
+    if (ignoreLinks.some((link) => link.link === item.downloadLink)) {
+      return false;
+    }
+
     return validSubgroups.some((group) => this.subgroupService.matchesSubgroup(item.itemName.trim(), group));
   }
-
-
 
   public async syncCurrentShows() {
     const defaultSeason = (await this.settingsService.findByKey('currentSeason')).value;
@@ -154,28 +162,40 @@ export class NyaaService {
     await this.syncShow(foundSeries, name, year + '');
   }
 
-  public async suggestSubgroups(name: string, altNames: string[]) {
-    const items = await this.searchItems(NyaaFeed.ANIME, name, false);
-    const altItems = await Promise.all(altNames.map((alt) => this.searchItems(NyaaFeed.ANIME, alt, false)));
+  public async suggestSubgroups(name: string, altNames: string[], epCountRegex = '') {
+    const items = await this.searchItems(NyaaFeed.ANIME, name, epCountRegex, false);
+    const altItems = await Promise.all(altNames.map((alt) => this.searchItems(NyaaFeed.ANIME, alt, epCountRegex, false)));
 
     const unqiItems = this.uniqNyaaItems(items.concat(...altItems));
 
-    return unqiItems.map((nyatem) => {
-      const subGroup = new SubGroup();
+    const suggestions = unqiItems
+      .sort((a, b) => (a.publishedDate > b.publishedDate ? 1 : -1))
+      .map((nyatem) => {
+        const suggestedSubgroup = new SuggestedSubgroupDTO();
+        const subGroup = new SubGroup();
 
-      subGroup.name = nyatem.subGroupName;
-      // @ts-ignore
-      subGroup.preferedResultion = nyatem.resolution;
+        subGroup.name = nyatem.subGroupName;
+        // @ts-ignore
+        subGroup.preferedResultion = nyatem.resolution;
 
-      const rule = new SubGroupRule();
-      rule.ruleType = RuleType.STARTS_WITH;
-      rule.isPositive = true;
-      rule.text = this.findSearchTerm(nyatem);
+        const rule = new SubGroupRule();
+        rule.ruleType = RuleType.STARTS_WITH;
+        rule.isPositive = true;
+        rule.text = this.findSearchTerm(nyatem);
 
-      subGroup.addRule(rule);
+        subGroup.addRule(rule);
 
-      return subGroup;
-    });
+        suggestedSubgroup.subgroup = subGroup;
+        suggestedSubgroup.isRemake = nyatem.isRemake;
+        suggestedSubgroup.isTrusted = nyatem.isTrusted;
+
+        return suggestedSubgroup;
+      })
+      .filter((suggestion) => suggestion.subgroup.preferedResultion === '1080' && !!suggestion.subgroup.name);
+
+    const uniqSuggestions = uniqWith<SuggestedSubgroupDTO, SuggestedSubgroupDTO>((a, b) => a.subgroup.name === b.subgroup.name, suggestions);
+
+    return uniqSuggestions.sort((a, b) => (a.isTrusted && !b.isTrusted ? -1 : 1));
   }
 
   public async downloadShow(url: string, downloadPath: string, fileName: string, queuedName: string, id: number) {
@@ -197,17 +217,19 @@ export class NyaaService {
   private async syncShow(series: Series, season?: string, year?: string) {
     this.socketService.nyaaSocket.emit('series-syncing', { id: series.id, type: 'STARTING' });
     await this.folderService.ensureShowFolder(series.folderPath, season, year);
+
     const downloadedEps = series.folderPath ? await this.findDownloadedEps(series.folderPath, season, year) : [];
     const currentCount = series.folderPath ? await this.findHighestCount(series.folderPath, season, year) : series.downloaded;
     const existingQueue = clone(series.showQueue);
 
     const searchItems = this.findSearchItems(series);
-    const items = await Promise.all(searchItems.map((name) => this.searchItems(NyaaFeed.ANIME, name, false)));
+    const items = await Promise.all(searchItems.map((name) => this.searchItems(NyaaFeed.ANIME, name, series.episodeRegex, false)));
     const uniqItems = this.uniqNyaaItems([].concat(...items));
 
     const validItems = this.findValidItems(
-      (uniqItems || []).filter((item) => !downloadedEps.includes(item.episodeName + series.offset)),
+      (uniqItems || []).filter((item) => !downloadedEps.includes(item.episodeName + Number(series.offset || 0))),
       series.subgroups,
+      [],
     );
 
     series.showQueue = validItems;
@@ -276,7 +298,12 @@ export class NyaaService {
     return 'ANY';
   }
 
-  private findCount(title: string) {
+  private findCount(title: string, regex = '') {
+    if (regex) {
+      const matches = title.match(new RegExp(regex, 'i'));
+      if (matches) return Number(matches.length > 0 ? matches[matches.length - 1] : 0);
+    }
+
     const parts = title.split(' - ');
 
     if (parts.length === 0) {
@@ -291,7 +318,7 @@ export class NyaaService {
   public async waitFor(time: number) {
     return new Promise((resolve) => {
       setTimeout(() => {
-        resolve(() => { });
+        resolve(() => {});
       }, time);
     });
   }

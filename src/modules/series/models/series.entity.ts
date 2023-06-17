@@ -66,6 +66,9 @@ export class Series {
   @Column({ type: 'decimal', default: 0, nullable: true })
   offset?: number;
 
+  @Column({ type: 'text', default: '', nullable: true })
+  episodeRegex: string;
+
   continuing: boolean = false;
 
   @Column({ type: 'decimal', default: 0, nullable: true, name: 'mal_id' })

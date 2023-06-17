@@ -126,7 +126,9 @@ export class TorrentService {
 
   private torrentDownload(torrent: any, name: string, id: string) {
     const debounceThing = throttle(1000, () => {
-      if (torrent.progress === 1) { return; }
+      if (torrent.progress === 1) {
+        return;
+      }
 
       this.emitDownloading({
         hash: torrent.infoHash,
@@ -140,7 +142,7 @@ export class TorrentService {
           timeLeft: this.millisecondsToTime(torrent.timeRemaining),
           ratio: torrent.ratio,
         },
-      })
+      });
     });
 
     torrent.on('download', debounceThing);
@@ -164,7 +166,6 @@ export class TorrentService {
       if (next) {
         this.startDownload(next.fileName, next.fileName, next.url, next.id, events);
       }
-
     });
   }
 
@@ -211,7 +212,7 @@ export class TorrentService {
   private async waitFor(time: number) {
     return new Promise((resolve) => {
       setTimeout(() => {
-        resolve(() => { });
+        resolve(() => {});
       }, time);
     });
   }

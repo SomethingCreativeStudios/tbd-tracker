@@ -10,4 +10,7 @@ export class SearchNyaaDTO {
 
   @IsBoolean()
   trusted: boolean;
+
+  @IsString()
+  regex: string;
 }

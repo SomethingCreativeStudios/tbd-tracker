@@ -4,7 +4,6 @@ import { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConne
 
 import { ConfigService } from '../config';
 
-import { getMetadataArgsStorage } from 'typeorm';
 import { MediaItem } from '../modules/media/models/media.entity';
 import { AnimeFolderRule } from '../modules/anime-folder/models';
 import { Season } from '../modules/season/models/season.entity';
@@ -15,6 +14,7 @@ import { SubGroupRule } from '../modules/sub-group-rule/models/sub-group-rule.en
 import { Task } from '../modules/tasks/models/task.entity';
 import { User } from '../modules/user';
 import { Role } from '../modules/role';
+import { IgnoreLink } from '../modules/ignore-link/models/ignore-link.entity';
 
 export class TypeOrmOptions implements TypeOrmOptionsFactory {
   constructor(@Inject(ConfigService) private readonly configService: ConfigService) {}
@@ -30,7 +30,7 @@ export class TypeOrmOptions implements TypeOrmOptionsFactory {
       synchronize: this.configService.firstRun,
       logging: false,
       migrationsRun: true,
-      entities: [MediaItem, AnimeFolderRule, Season, Series, Settings, SubGroup, SubGroupRule, Task, User, Role],
+      entities: [MediaItem, AnimeFolderRule, Season, Series, Settings, SubGroup, SubGroupRule, Task, User, Role, IgnoreLink],
       migrations: [`./dist/src/migrations/*{.ts,.js}`],
     };
   }

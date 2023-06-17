@@ -21,6 +21,7 @@ import { MigrateSeriesDTO } from './dtos/MigrateSeriesDTO';
 import { NyaaItem } from '../nyaa/models/nyaaItem';
 import { SubGroup } from '../sub-group/models';
 import { MalService } from '../mal/mal.service';
+import { IgnoreLinkService } from '../ignore-link/ignore-link.service';
 
 @Injectable()
 export class SeriesService {
@@ -41,6 +42,7 @@ export class SeriesService {
     private readonly animeFolderService: AnimeFolderService,
 
     private readonly malService: MalService,
+    private readonly ignoreLinkService: IgnoreLinkService,
   ) {}
 
   public async createFromSeason({ malIds, seasonName, seasonYear }: CreateBySeasonDTO) {
@@ -142,11 +144,12 @@ export class SeriesService {
   }
 
   public async findBySeason(name: string, year: number, _sortBy: 'QUEUE' | 'NAME' | 'WATCH_STATUS' = 'QUEUE', onlyWithQueue: boolean) {
+    const ignoreLinks = await this.ignoreLinkService.findAll();
     const series = ((await this.seasonService.find(name as SeasonName, year))?.series ?? []).map((show) => ({ ...show, nextAiringDate: getClosestAiringDate(show.airingData) }));
 
     const filteredQueue = (items: NyaaItem[], groups: SubGroup[]) =>
       items.filter((item) => {
-        return groups.every((group) => group.preferedResultion === item.resolution);
+        return groups.every((group) => group.preferedResultion === item.resolution) && !ignoreLinks.some((ignore) => ignore.link === item.downloadLink);
       });
 
     const sortedSeries = series.sort((a, b) => {

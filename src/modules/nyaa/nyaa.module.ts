@@ -9,10 +9,11 @@ import { AnimeFolderModule } from '../anime-folder/anime-folder.module';
 import { GlobalCacheModule } from '../global-cache/global-cache.module';
 import { TorrentModule } from '../torrent/torrent.module';
 import { ConfigModule } from '~/config';
+import { IgnoreLinkModule } from '../ignore-link/ignore-link.module';
 
 @Module({
-  imports: [SubgroupModule, forwardRef(() => SeriesModule), ConfigModule, TorrentModule, SettingsModule, AnimeFolderModule, GlobalCacheModule, SocketModule],
+  imports: [SubgroupModule, forwardRef(() => SeriesModule), IgnoreLinkModule, ConfigModule, TorrentModule, SettingsModule, AnimeFolderModule, GlobalCacheModule, SocketModule],
   providers: [NyaaService, NyaaGateway],
   exports: [NyaaService],
 })
-export class NyaaModule { }
+export class NyaaModule {}

@@ -19,7 +19,7 @@ import { SeasonName } from '../season/models';
 
 @WebSocketGateway(8180, { namespace: 'series', transports: ['websocket'] })
 export class SeriesGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
-  constructor(private seriesService: SeriesService, private folderService: AnimeFolderService, private socketService: SocketService) { }
+  constructor(private seriesService: SeriesService, private folderService: AnimeFolderService, private socketService: SocketService) {}
   afterInit(server: Server) {
     this.socketService.seriesSocket = server;
   }
@@ -29,7 +29,7 @@ export class SeriesGateway implements OnGatewayInit, OnGatewayConnection, OnGate
       client.disconnect();
     }
   }
-  handleDisconnect(client: any) { }
+  handleDisconnect(client: any) {}
 
   @WebSocketServer() public server: Server;
 

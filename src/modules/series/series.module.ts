@@ -9,9 +9,9 @@ import { AnimeFolderModule } from '../anime-folder/anime-folder.module';
 import { SeriesGateway } from './series.gateway';
 import { NyaaModule } from '../nyaa/nyaa.module';
 import { SocketModule } from '../socket/socket.module';
-import { AuthModule } from '../auth';
 import { GlobalCacheModule } from '../global-cache/global-cache.module';
 import { MalModule } from '../mal/mal.module';
+import { IgnoreLinkModule } from '../ignore-link/ignore-link.module';
 
 @Module({
   imports: [
@@ -20,6 +20,7 @@ import { MalModule } from '../mal/mal.module';
     SocketModule,
     GlobalCacheModule,
     MalModule,
+    IgnoreLinkModule,
     forwardRef(() => SubgroupModule),
     forwardRef(() => SeasonModule),
     forwardRef(() => NyaaModule),
@@ -28,4 +29,4 @@ import { MalModule } from '../mal/mal.module';
   providers: [SeriesService, SeriesGateway],
   exports: [SeriesService],
 })
-export class SeriesModule { }
+export class SeriesModule {}

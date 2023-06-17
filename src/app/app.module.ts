@@ -27,6 +27,7 @@ import { FileModule } from '../modules/file';
 import { MediaModule } from '../modules/media/media.module';
 import { MovieModule } from '../modules/movies';
 import { PlexModule } from '../modules/plex';
+import { IgnoreLinkModule } from '~/modules/ignore-link/ignore-link.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { PlexModule } from '../modules/plex';
     MediaModule,
     MovieModule,
     PlexModule,
+    IgnoreLinkModule, 
     ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
       useClass: TypeOrmOptions,

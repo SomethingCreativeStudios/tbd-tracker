@@ -5,4 +5,6 @@ export interface NyaaRSSItem {
   isoDate: string;
   title: string;
   episodeName: number;
+  ['nyaa:trusted']: 'Yes' | 'No';
+  ['nyaa:remake']: 'Yes' | 'No';
 }
