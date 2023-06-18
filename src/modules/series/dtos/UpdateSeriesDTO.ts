@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsDate, IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsBoolean, IsDate, IsEnum, IsNumber, IsOptional, IsString, isBoolean } from 'class-validator';
 import { NyaaItem } from '~/modules/nyaa/models/nyaaItem';
 import { WatchingStatus } from '../models';
 
@@ -78,4 +78,7 @@ export class UpdateSeriesDTO {
   @IsArray()
   @Type(() => NyaaItem)
   showQueue?: NyaaItem[];
+
+  @IsBoolean()
+  hasSubgroupsPending?: boolean;
 }

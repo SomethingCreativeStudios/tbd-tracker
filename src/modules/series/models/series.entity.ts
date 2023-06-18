@@ -69,6 +69,9 @@ export class Series {
   @Column({ type: 'text', default: '', nullable: true })
   episodeRegex: string;
 
+  @Column({ type: 'bool', default: false, nullable: true })
+  hasSubgroupsPending: boolean;
+
   continuing: boolean = false;
 
   @Column({ type: 'decimal', default: 0, nullable: true, name: 'mal_id' })

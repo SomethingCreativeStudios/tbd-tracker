@@ -12,7 +12,7 @@ export enum SourceLocation {
 
 @Injectable()
 export class MovieService {
-  constructor(private readonly mediaService: MediaService, private readonly socketService: SocketService) { }
+  constructor(private readonly mediaService: MediaService, private readonly socketService: SocketService) {}
 
   async find(query: string, source = SourceLocation.THE_PIRATE_BAY): Promise<MediaCollection[]> {
     const foundMedia = [] as MediaCollection[];
@@ -27,6 +27,7 @@ export class MovieService {
         collection.link = item.magUrl;
         collection.name = item.name;
         collection.parsedName = item.parsedName;
+        collection.size = item.size;
         collection.parsedResolution = this.findResolution(item.name);
         collection.items = [];
         foundMedia.push(collection);

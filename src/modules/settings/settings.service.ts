@@ -12,7 +12,7 @@ export class SettingsService {
   constructor(
     @InjectRepository(Settings)
     private readonly settingsRepository: SettingsRepository,
-  ) { }
+  ) {}
 
   create(setting: CreateSettingDTO) {
     return this.settingsRepository.save(setting as Settings);
@@ -69,6 +69,10 @@ export class SettingsService {
     if (key === 'defaultSubgroup') {
       return SettingType.STRING;
     }
+
+    if (key === 'approvedSubgroups') {
+      return SettingType.STRING;
+    }
   }
 
   private getDefaults(key: string) {
@@ -82,6 +86,10 @@ export class SettingsService {
 
     if (key === 'defaultSubgroup') {
       return 'Erai-raws';
+    }
+
+    if (key === 'approvedSubgroups') {
+      return 'Erai-raws,SubsPlease';
     }
   }
 }

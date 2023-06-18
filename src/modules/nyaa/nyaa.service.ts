@@ -42,7 +42,7 @@ export class NyaaService {
       return currentName;
     }
 
-    const epNumber = this.findCount(currentName, regex) + (offset || 0);
+    const epNumber = this.findCount(currentName, regex) + (Number(offset) || 0);
     const subgroup =
       currentName
         .match(/\[(.*?)\]/g)?.[0]
@@ -215,6 +215,23 @@ export class NyaaService {
   }
 
   private async syncShow(series: Series, season?: string, year?: string) {
+    if (series.subgroups.length === 0) {
+      const approvedSubGroups = await this.settingsService.findByKey('approvedSubgroups');
+      const suggestedSubgroups = await this.suggestSubgroups(series.name, series.otherNames, series.episodeRegex);
+      const allGoodGroups = suggestedSubgroups.filter((suggestion) => approvedSubGroups.value.toLowerCase().includes(suggestion.subgroup.name.toLowerCase()));
+
+      await this.seriesService.update({ id: series.id, hasSubgroupsPending: allGoodGroups.length > 0 });
+
+      this.socketService.nyaaSocket.emit('series-syncing', {
+        id: series.id,
+        type: 'PENDING',
+        queue: allGoodGroups,
+      });
+
+      this.waitFor(400);
+      return;
+    }
+
     this.socketService.nyaaSocket.emit('series-syncing', { id: series.id, type: 'STARTING' });
     await this.folderService.ensureShowFolder(series.folderPath, season, year);
 
@@ -270,7 +287,7 @@ export class NyaaService {
     const files = readdirSync(join(await this.folderService.getCurrentFolder(season, year), folderName), { withFileTypes: true }).filter((item) => item.isFile());
 
     return files.reduce((acc, file) => {
-      const epNumber = this.findCount(file.name) + offset;
+      const epNumber = this.findCount(file.name) + (Number(offset) || 0);
 
       return acc < epNumber ? epNumber : acc;
     }, 0);
@@ -279,7 +296,7 @@ export class NyaaService {
   private async findDownloadedEps(folderName, season?: string, year?: string, offset = 0) {
     const files = readdirSync(join(await this.folderService.getCurrentFolder(season, year), folderName), { withFileTypes: true }).filter((item) => item.isFile());
 
-    return files.map((file) => this.findCount(file.name) + offset);
+    return files.map((file) => this.findCount(file.name) + (Number(offset) || 0));
   }
 
   private findResolution(title: string) {

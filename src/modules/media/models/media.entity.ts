@@ -11,6 +11,7 @@ export class MediaCollection {
   name: string;
   parsedResolution: '720' | '1080' | '480' | 'NOT_FOUND';
   parsedName: string;
+  size: string;
 }
 @Entity()
 export class MediaItem {
