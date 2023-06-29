@@ -4,4 +4,5 @@ export class SuggestedSubgroupDTO {
   subgroup: SubGroup;
   isTrusted: boolean;
   isRemake: boolean;
+  pubDate: Date;
 }

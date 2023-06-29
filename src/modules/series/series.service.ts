@@ -69,10 +69,7 @@ export class SeriesService {
     const series = await this.seriesRepository.findOne({ where: { id } });
     const malSeries = await this.malService.findById(series.malId);
 
-    await this.seriesRepository.update(
-      { id },
-      { imageUrl: malSeries.imageUrl, airingData: malSeries.airingData, description: malSeries.description, numberOfEpisodes: malSeries.numberOfEpisodes, score: malSeries.score },
-    );
+    await this.seriesRepository.update({ id }, { imageUrl: malSeries.imageUrl, airingData: malSeries.airingData, description: malSeries.description, numberOfEpisodes: malSeries.numberOfEpisodes });
 
     return this.seriesRepository.findOne({ where: { id } });
   }
@@ -99,13 +96,21 @@ export class SeriesService {
       updateModel.watchStatus = WatchingStatus.WATCHING;
     }
 
-    if (updateModel.downloaded === updateModel.numberOfEpisodes && updateModel.numberOfEpisodes > 1 && updateModel.watchStatus === WatchingStatus.WATCHING) {
+    if (updateModel.downloaded === updateModel.numberOfEpisodes && updateModel.numberOfEpisodes > 1) {
       updateModel.watchStatus = WatchingStatus.WATCHED;
+    }
+
+    if (updateModel.score) {
+      const foundSeries = await this.seriesRepository.findOne({ where: { id: updateModel.id } });
+      const canUpdateScore = updateModel.watchStatus === WatchingStatus.WATCHED || foundSeries.watchStatus === WatchingStatus.WATCHED;
+      canUpdateScore && (await this.malService.updateScore(foundSeries.malId, updateModel.score, foundSeries.numberOfEpisodes));
     }
 
     await this.seriesRepository.update({ id: updateModel.id }, updateModel);
 
-    return this.seriesRepository.findOne({ where: { id: updateModel.id } });
+    const test = await this.seriesRepository.findOne({ where: { id: updateModel.id } });
+
+    return test;
   }
 
   public async toggleWatchStatus(id: number) {
@@ -152,6 +157,11 @@ export class SeriesService {
         return groups.every((group) => group.preferedResultion === item.resolution) && !ignoreLinks.some((ignore) => ignore.link === item.downloadLink);
       });
 
+    const waitingToBeScored = (show: Series) => {
+      // @ts-ignore
+      return show.downloaded === show.numberOfEpisodes && (!show.score || show.score === 'NaN');
+    };
+
     const sortedSeries = series.sort((a, b) => {
       const aQueue = filteredQueue(a.showQueue, a.subgroups);
       const bQueue = filteredQueue(b.showQueue, b.subgroups);
@@ -165,7 +175,7 @@ export class SeriesService {
       if (aQueue.length < bQueue.length) return 1;
     });
 
-    return onlyWithQueue ? sortedSeries.filter((show) => filteredQueue(show.showQueue, show.subgroups).length) : sortedSeries;
+    return onlyWithQueue ? sortedSeries.filter((show) => waitingToBeScored(show) || filteredQueue(show.showQueue, show.subgroups).length) : sortedSeries;
   }
 
   public async findAll(overrideSeason?: string, overrideYear?: number) {
@@ -190,6 +200,26 @@ export class SeriesService {
 
   public async findFromMAL(name: string) {
     return this.malService.search(name);
+  }
+
+  public async findAllFromMAL(names: string[]) {
+    const results = [];
+    for await (const name of names) {
+      try {
+        results.push(await this.malService.search(name, false));
+      } catch (e) {
+        console.log('Show has probs', name);
+      }
+    }
+    console.log(results);
+  }
+
+  public async completeSeries(seriesId: number, score: number) {
+    const series = await this.findById(seriesId);
+
+    await this.malService.updateScore(series.malId, score, series.numberOfEpisodes);
+
+    return this.update({ id: seriesId, score });
   }
 
   public async migrateSeries({ id, season, year }: MigrateSeriesDTO) {

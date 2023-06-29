@@ -125,6 +125,10 @@ export class MalService {
     return this.toSeries(result, currentFolder, autoCreateFolder);
   }
 
+  async updateScore(malId: number, score: number, totalEps: number) {
+    await this.malClient.patch(`anime/${malId}/my_list_status`, { status: 'completed', score, num_watched_episodes: totalEps });
+  }
+
   private toSeries(malResult: MalResult, currentFolder: string, autoCreateFolder: boolean, year?: number, season?: string): Series {
     const series = new Series();
 

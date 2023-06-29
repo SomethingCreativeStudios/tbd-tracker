@@ -13,7 +13,7 @@ import { NyaaItem } from './models/nyaaItem';
 import { SocketService } from '../socket/socket.service';
 import { SeriesService } from '../series/series.service';
 import { SeasonName } from '../season/models';
-import { Series } from '../series/models';
+import { Series, WatchingStatus } from '../series/models';
 import { SettingsService } from '../settings/settings.service';
 import { AnimeFolderService } from '../anime-folder/anime-folder.service';
 import { RuleType, SubGroupRule } from '../sub-group-rule/models';
@@ -150,8 +150,12 @@ export class NyaaService {
     const series = await this.seriesService.findBySeason(defaultSeason as SeasonName, Number(defaultYear), 'QUEUE', false);
 
     for await (const show of series) {
-      await this.seriesService.syncWithMal(show.id);
-      await this.syncShow(show, season, year);
+      try {
+        await this.seriesService.syncWithMal(show.id);
+        await this.syncShow(show, season, year);
+      } catch (ex) {
+        console.log('Error syncing show', show.name);
+      }
     }
   }
 
@@ -188,6 +192,7 @@ export class NyaaService {
         suggestedSubgroup.subgroup = subGroup;
         suggestedSubgroup.isRemake = nyatem.isRemake;
         suggestedSubgroup.isTrusted = nyatem.isTrusted;
+        suggestedSubgroup.pubDate = nyatem.publishedDate;
 
         return suggestedSubgroup;
       })
@@ -215,10 +220,16 @@ export class NyaaService {
   }
 
   private async syncShow(series: Series, season?: string, year?: string) {
+    if (series.watchStatus === WatchingStatus.WATCHED) {
+      console.log('Skipping watched show', series.name);
+      return;
+    }
+
     if (series.subgroups.length === 0) {
       const approvedSubGroups = await this.settingsService.findByKey('approvedSubgroups');
       const suggestedSubgroups = await this.suggestSubgroups(series.name, series.otherNames, series.episodeRegex);
-      const allGoodGroups = suggestedSubgroups.filter((suggestion) => approvedSubGroups.value.toLowerCase().includes(suggestion.subgroup.name.toLowerCase()));
+      const isReasonableDate = (date: Date) => series.airingData < date;
+      const allGoodGroups = suggestedSubgroups.filter((suggestion) => isReasonableDate(suggestion.pubDate) && approvedSubGroups.value.toLowerCase().includes(suggestion.subgroup.name.toLowerCase()));
 
       await this.seriesService.update({ id: series.id, hasSubgroupsPending: allGoodGroups.length > 0 });
 
@@ -252,7 +263,7 @@ export class NyaaService {
     series.showQueue = validItems;
     series.downloaded = series.downloaded > currentCount ? series.downloaded : currentCount;
 
-    await this.seriesService.update({ id: series.id, downloaded: series.downloaded, showQueue: series.showQueue });
+    await this.seriesService.update({ id: series.id, downloaded: series.downloaded, hasSubgroupsPending: false, numberOfEpisodes: series.numberOfEpisodes, showQueue: series.showQueue });
 
     const queueUpdated = existingQueue.every((item) => validItems.includes(item));
     const didUpdateOccur = !queueUpdated || existingQueue.length !== validItems.length;

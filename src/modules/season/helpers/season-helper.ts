@@ -14,6 +14,6 @@ export function findLastSeason(season: SeasonName, year: string) {
   }
 
   if (season === SeasonName.SPRING) {
-    return { season: SeasonName.FALL, year: +year };
+    return { season: SeasonName.WINTER, year: +year };
   }
 }

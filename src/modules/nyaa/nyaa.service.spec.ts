@@ -43,6 +43,8 @@ function createNyaaItem(subgroup, link, resolution = '720'): NyaaItem {
     subGroupName: subgroup,
     itemName: link,
     episodeName: 0,
+    isTrusted: false,
+    isRemake: false,
   };
 }
 
@@ -82,7 +84,7 @@ const subgroups = [
 ];
 
 describe('Items', () => {
-  const service = new NyaaService(null, null, null, null, null);
+  const service = new NyaaService(null, null, null, null, null, null, null);
   it('Replace Name - Nothing', () => {
     const series = new Series();
 
@@ -153,7 +155,7 @@ describe('Formatter service', () => {
 
       expect(existsSync(`${rootPath}\\${fileName}`)).toBeFalsy();
 
-      const result = await service.downloadShow('https://nyaa.si/download/1284616.torrent', rootPath, 'test');
+      const result = await service.downloadShow('https://nyaa.si/download/1284616.torrent', rootPath, 'test', 'test', 1);
 
       expect(result.error).toEqual(undefined);
       expect(existsSync(`${rootPath}\\${fileName}`)).toBeTruthy();

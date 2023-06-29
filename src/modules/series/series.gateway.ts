@@ -48,6 +48,12 @@ export class SeriesGateway implements OnGatewayInit, OnGatewayConnection, OnGate
   }
 
   @UseGuards(SocketGuard)
+  @SubscribeMessage('complete')
+  async completeSeries(@MessageBody() { id, score }: { id: number; score: number }) {
+    return this.seriesService.completeSeries(id, score);
+  }
+
+  @UseGuards(SocketGuard)
   @SubscribeMessage('get-by-it')
   async fetchById(@MessageBody() id: number) {
     return this.seriesService.findById(id);
