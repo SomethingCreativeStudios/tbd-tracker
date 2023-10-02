@@ -29,11 +29,16 @@ export class TorrentGateway implements OnGatewayInit, OnGatewayConnection, OnGat
 
   @UseGuards(SocketGuard)
   @SubscribeMessage('direct-download')
-  async directDownload(@MessageBody() { fileName, type, url }: DirectDownloadMessage) {
-    this.torrentService.download(url, type === MediaType.MOVIE ? this.configService.baseMovieFolder : this.configService.baseTVShowFolder, fileName, null, {
+  async directDownload(@MessageBody() { fileName, type, url, downloadPath }: DirectDownloadMessage) {
+    console.log('downloadPath', downloadPath);
+
+    this.torrentService.download(url, type === MediaType.MOVIE ? this.configService.baseMovieFolder : downloadPath || this.configService.baseTVShowFolder, fileName, null, {
       onDone: () => {
-        this.plexService.refresh(LibraryType.MOVIE);
-        this.plexService.refresh(LibraryType.TV_SHOW);
+        if (type === MediaType.MOVIE) {
+          this.plexService.refresh(LibraryType.MOVIE);
+        } else {
+          this.plexService.refresh(LibraryType.TV_SHOW);
+        }
       },
     });
   }

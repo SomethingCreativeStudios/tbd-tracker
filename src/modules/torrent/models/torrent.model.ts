@@ -107,4 +107,5 @@ export interface DirectDownloadMessage {
   type: MediaType;
   url: string;
   fileName: string;
+  downloadPath: string;
 }

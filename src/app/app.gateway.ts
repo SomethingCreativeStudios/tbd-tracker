@@ -24,8 +24,8 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
   handleConnection(client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);
 
-    setTimeout(() => {
-      this.torrentService.onConnect(client);
+    setTimeout(async () => {
+      await this.torrentService.onConnect(client);
     }, 1000);
   }
 }
