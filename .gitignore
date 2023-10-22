@@ -14,6 +14,7 @@ orm*.json
 .DS_Store
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+quick-deploy.sh
 
 # Runtime data
 pids

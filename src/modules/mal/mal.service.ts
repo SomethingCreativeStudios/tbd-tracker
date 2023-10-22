@@ -33,9 +33,13 @@ interface MalResult {
   genres: { id: number; name: string }[];
   num_episodes: number;
   studios: { id: number; name: string }[];
+  broadcast: {
+    start_time: string;
+    day_of_the_week: string;
+  };
 }
 
-const malFields = ['id', 'title', 'start_season', 'anime_score', 'main_picture', 'alternative_titles', 'start_date', 'synopsis', 'genres', 'num_episodes', 'studios'];
+const malFields = ['id', 'title', 'start_season', 'anime_score', 'broadcast', 'main_picture', 'alternative_titles', 'start_date', 'synopsis', 'genres', 'num_episodes', 'studios'];
 
 @Injectable()
 export class MalService {
@@ -132,7 +136,7 @@ export class MalService {
   private toSeries(malResult: MalResult, currentFolder: string, autoCreateFolder: boolean, year?: number, season?: string): Series {
     const series = new Series();
 
-    series.airingData = new Date(malResult.start_date) || new Date();
+    series.airingData = new Date(malResult.start_date + 'T' + malResult.broadcast.start_time + '+09:00') || new Date();
     series.description = malResult.synopsis;
     series.genres = malResult?.genres?.map((genre) => genre.name) ?? [];
     series.imageUrl = malResult.main_picture?.medium;

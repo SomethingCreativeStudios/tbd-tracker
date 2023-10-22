@@ -126,6 +126,12 @@ export class SeriesGateway implements OnGatewayInit, OnGatewayConnection, OnGate
   }
 
   @UseGuards(SocketGuard)
+  @SubscribeMessage('sync-all-mal')
+  async syncAllWithMal() {
+    return this.seriesService.syncAllWithMal();
+  }
+
+  @UseGuards(SocketGuard)
   @SubscribeMessage('sync-mal-image')
   async syncImageWithMal(@MessageBody() id: number) {
     return this.seriesService.syncImage(id);

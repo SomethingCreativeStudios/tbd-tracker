@@ -36,6 +36,8 @@ export class PlexService {
 
   @Cron(CronExpression.EVERY_HOUR)
   private async refreshSync() {
+    return;
+    
     if (!this.configService.enableSync) {
       return;
     }

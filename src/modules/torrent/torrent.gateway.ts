@@ -34,6 +34,7 @@ export class TorrentGateway implements OnGatewayInit, OnGatewayConnection, OnGat
 
     this.torrentService.download(url, type === MediaType.MOVIE ? this.configService.baseMovieFolder : downloadPath || this.configService.baseTVShowFolder, fileName, null, {
       onDone: () => {
+        console.log('Calling onDone');
         if (type === MediaType.MOVIE) {
           this.plexService.refresh(LibraryType.MOVIE);
         } else {

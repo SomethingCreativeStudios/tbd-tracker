@@ -74,6 +74,20 @@ export class SeriesService {
     return this.seriesRepository.findOne({ where: { id } });
   }
 
+  public async syncAllWithMal() {
+    const season = await this.settingsService.findByKey('currentSeason');
+    const year = await this.settingsService.findByKey('currentYear');
+
+    const series = await this.seasonService.find(season.value as SeasonName, Number(year.value));
+
+    for await (const show of series.series) {
+      console.log('syncing', show.name);
+      await this.syncWithMal(show.id);
+    }
+
+    console.log('done mal sync');
+  }
+
   public async create(series: Series) {
     await this.animeFolderService.ensureShowFolder(series.name, series.season.name, String(series.season.year));
 

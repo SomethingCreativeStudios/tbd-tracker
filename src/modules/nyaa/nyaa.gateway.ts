@@ -58,6 +58,12 @@ export class NyaaGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   }
 
   @UseGuards(SocketGuard)
+  @SubscribeMessage('suggest-from-recent-subgroups')
+  async suggestShowRecent() {
+    return this.nyaaService.suggestFromMostRecent();
+  }
+
+  @UseGuards(SocketGuard)
   @SubscribeMessage('download')
   async downloadShow(@MessageBody() { seriesId, url, name }: DownloadDTO) {
     const series = await this.seriesService.findById(seriesId);

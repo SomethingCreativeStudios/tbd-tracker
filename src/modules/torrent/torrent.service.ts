@@ -119,7 +119,7 @@ export class TorrentService {
       return;
     }
 
-    if (this.downloading.length > 5) {
+    if (this.downloading.length > 8) {
       this.logger.log(`Queued ${realName}`);
       this.queued.push({ fileName: realName, path: downloadPath, url: torrentName, id });
 
@@ -195,7 +195,7 @@ export class TorrentService {
       this.cacheManager.set('queued:items', this.queued, { ttl: 0 });
 
       if (next) {
-        this.startDownload(next.fileName, next.fileName, next.url, next.id, events);
+        this.startDownload(next.fileName, next.path, next.url, next.id, events);
       }
     });
   }

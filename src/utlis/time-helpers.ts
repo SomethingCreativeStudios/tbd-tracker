@@ -1,4 +1,4 @@
-import { addDays, addWeeks, eachWeekOfInterval, formatDistance, isFuture, isSameDay } from 'date-fns';
+import { addDays, addWeeks, eachWeekOfInterval, formatDistance, isFuture } from 'date-fns';
 
 export function toDate(dateString: string) {
   return addDays(new Date(dateString), 1);
@@ -11,7 +11,12 @@ export function getClosestAiringDate(airingDate: Date, currentDate = new Date())
   try {
     const range = eachWeekOfInterval({ start: airingDate, end: addWeeks(currentDate, 1) }, { weekStartsOn: airingDate.getDay() as any });
 
-    return range.find((date) => isSameDay(date, currentDate) || isFuture(date));
+    const daDate = range.find((date) => isFuture(date));
+
+    daDate.setHours(airingDate.getHours());
+    daDate.setMinutes(airingDate.getMinutes());
+
+    return daDate;
   } catch (ex) {
     console.error(airingDate, currentDate, ex);
     return new Date();
@@ -25,5 +30,5 @@ export function getAiringTime(airingDate: Date, currentDate = new Date()) {
 
   const nextDate = getClosestAiringDate(airingDate, currentDate);
 
-  return formatDistance(nextDate, currentDate);
+  return formatDistance(nextDate, currentDate, { addSuffix: true });
 }

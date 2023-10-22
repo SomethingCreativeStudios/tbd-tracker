@@ -3,7 +3,6 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { readdirSync } from 'fs-extra';
 import { clone, uniqWith } from 'ramda';
 import { join } from 'path';
-
 import Parser from 'rss-parser';
 
 import { SubGroup } from '../sub-group/models';
@@ -55,7 +54,7 @@ export class NyaaService {
   public async searchItems(feed: NyaaFeed, searchTerm: string, epCountRegex = '', onlyTrusted = false): Promise<NyaaItem[]> {
     try {
       const trusted = onlyTrusted ? '&f=2' : '';
-      const query = `&q=${encodeURI(searchTerm)}`;
+      const query = searchTerm ? `&q=${encodeURI(searchTerm)}` : '';
 
       console.log(`${feed}${trusted}${query}`);
 
@@ -164,6 +163,38 @@ export class NyaaService {
     const { name, year } = foundSeries.season;
 
     await this.syncShow(foundSeries, name, year + '');
+  }
+
+  public async suggestFromMostRecent() {
+    const items = await this.searchItems(NyaaFeed.ANIME, '', '', false);
+    const suggestions = items
+      .sort((a, b) => (a.publishedDate > b.publishedDate ? 1 : -1))
+      .map((nyatem) => {
+        const suggestedSubgroup = new SuggestedSubgroupDTO();
+        const subGroup = new SubGroup();
+
+        subGroup.name = nyatem.subGroupName;
+        // @ts-ignore
+        subGroup.preferedResultion = nyatem.resolution;
+
+        const rule = new SubGroupRule();
+        rule.ruleType = RuleType.STARTS_WITH;
+        rule.isPositive = true;
+        rule.text = this.findSearchTerm(nyatem);
+
+        subGroup.addRule(rule);
+
+        suggestedSubgroup.subgroup = subGroup;
+        suggestedSubgroup.isRemake = nyatem.isRemake;
+        suggestedSubgroup.isTrusted = nyatem.isTrusted;
+        suggestedSubgroup.pubDate = nyatem.publishedDate;
+        suggestedSubgroup.title = nyatem.itemName;
+
+        return suggestedSubgroup;
+      })
+      .filter((suggestion) => suggestion.subgroup.preferedResultion === '1080' && suggestion.subgroup.name && suggestion.subgroup.rules?.[0].text);
+
+    return suggestions.sort((a, b) => (a.isTrusted && !b.isTrusted ? -1 : 1));
   }
 
   public async suggestSubgroups(name: string, altNames: string[], epCountRegex = '') {
