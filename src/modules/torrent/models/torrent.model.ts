@@ -1,5 +1,3 @@
-import WebTorrent from 'webtorrent';
-
 export interface TorrentDownloadingModel {
   path: string;
   hash: string;
@@ -19,7 +17,7 @@ export interface TorrentQueuedModel {
 
 export interface DownloadedEvent {
   name: string;
-  files: WebTorrent.TorrentFile[];
+  files: any[];
   error?: string;
 }
 

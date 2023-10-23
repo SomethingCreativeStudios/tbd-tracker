@@ -1,7 +1,6 @@
-import { MALClient } from '@chez14/mal-api-lite';
-import { CACHE_MANAGER, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
-import pkceChallenge from 'pkce-challenge';
 import { ensureDirSync } from 'fs-extra';
 import { join } from 'path';
 import sanitizeFilename from 'sanitize-filename';
@@ -9,6 +8,8 @@ import sanitizeFilename from 'sanitize-filename';
 import { ConfigService } from '~/config';
 import { AnimeFolderService } from '../anime-folder/anime-folder.service';
 import { Series, WatchingStatus } from '../series/models';
+import { MALClient } from '@chez14/mal-api-lite';
+import pkce from 'pkce-challenge';
 
 interface MalResults {
   data: MalNode[];
@@ -58,7 +59,6 @@ export class MalService {
 
   private async setup() {
     const config = this.configService.malConfig;
-
     this.malClient = new MALClient({
       // Both of the field should be filled if you want to generate authenticate link
       clientId: config.clientId,
@@ -69,8 +69,8 @@ export class MalService {
     });
   }
 
-  public getAuthUrl() {
-    const code = pkceChallenge(56);
+  public async getAuthUrl() {
+    const code = await pkce(56);
 
     const authUrl = this.malClient.getOAuthURL(this.configService.malConfig.redirectUrl, code.code_challenge);
 
@@ -81,8 +81,8 @@ export class MalService {
     try {
       const result = await this.malClient.resolveAuthCode(authCode, codeVerifier, this.configService.malConfig.redirectUrl);
 
-      await this.cacheManager.set('mal:refresh', result.refresh_token, { ttl: 0 });
-      await this.cacheManager.set('mal:access', result.access_token, { ttl: 0 });
+      await this.cacheManager.set('mal:refresh', result.refresh_token, 0);
+      await this.cacheManager.set('mal:access', result.access_token, 0);
       this.malClient.refreshToken = result.refresh_token;
       this.malClient.accessToken = result.access_token;
 

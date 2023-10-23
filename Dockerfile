@@ -1,4 +1,4 @@
-FROM node:16.10 AS BUILD_IMAGE
+FROM node:20.8 AS BUILD_IMAGE
 
 # Create app directory
 WORKDIR /src/app
@@ -17,7 +17,7 @@ RUN rm -r ./node_modules && yarn --frozen-lockfile --production=true
 
 # remove development dependencies
 
-FROM mcr.microsoft.com/playwright:v1.29.1-jammy
+FROM mcr.microsoft.com/playwright:v1.39.0-jammy
 
 WORKDIR /src/app
 

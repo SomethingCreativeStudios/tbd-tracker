@@ -229,7 +229,7 @@ export class NyaaService {
       })
       .filter((suggestion) => suggestion.subgroup.preferedResultion === '1080' && !!suggestion.subgroup.name);
 
-    const uniqSuggestions = uniqWith<SuggestedSubgroupDTO, SuggestedSubgroupDTO>((a, b) => a.subgroup.name === b.subgroup.name, suggestions);
+    const uniqSuggestions = uniqWith<SuggestedSubgroupDTO>((a, b) => a.subgroup.name === b.subgroup.name, suggestions);
 
     return uniqSuggestions.sort((a, b) => (a.isTrusted && !b.isTrusted ? -1 : 1));
   }
@@ -395,7 +395,7 @@ export class NyaaService {
   }
 
   private uniqNyaaItems(nyaaItems: NyaaItem[]) {
-    return uniqWith<NyaaItem, NyaaItem>((a, b) => a.downloadLink === b.downloadLink, nyaaItems);
+    return uniqWith<NyaaItem>((a, b) => a.downloadLink === b.downloadLink, nyaaItems);
   }
 
   private findSearchTerm(item: NyaaItem) {

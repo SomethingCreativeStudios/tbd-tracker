@@ -1,4 +1,5 @@
-import { CACHE_MANAGER, forwardRef, Inject, Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { sync as createId } from 'uid-safe';
 import { AccessToken } from './interfaces/interfaces';
@@ -20,8 +21,8 @@ export class AuthService {
     private userService: UserService,
 
     @Inject(CACHE_MANAGER)
-    private cacheManager: Cache
-  ) { }
+    private cacheManager: Cache,
+  ) {}
 
   async createSessionId(roleNames: RoleName[]): Promise<AccessToken> {
     const sessionId = createId(24);

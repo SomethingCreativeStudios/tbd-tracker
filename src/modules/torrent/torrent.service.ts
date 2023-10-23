@@ -1,11 +1,12 @@
-import { CACHE_MANAGER, Inject, Injectable, Logger } from '@nestjs/common';
-import WebTorrent from 'webtorrent';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Socket } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
 import { Cache } from 'cache-manager';
 import { throttle } from 'throttle-debounce';
 
 import { SocketService } from '../socket/socket.service';
+
 import {
   TorrentDownloadingModel,
   TorrentQueuedModel,
@@ -16,16 +17,16 @@ import {
   MetadataEvent,
   FinishedEvent,
   TorrentEvents,
-  MediaType,
 } from './models/torrent.model';
 import { rename } from 'fs-extra';
 import { join } from 'path';
 import { LibraryType, PlexService } from '../plex';
+import WebTorrent from 'webtorrent';
 
 @Injectable()
 export class TorrentService {
   private logger: Logger = new Logger('Torrent Service');
-  private client: WebTorrent.Instance;
+  private client: any;
 
   private downloading: TorrentDownloadingModel[] = [];
   private queued: TorrentQueuedModel[] = [];
@@ -36,6 +37,10 @@ export class TorrentService {
     @Inject(CACHE_MANAGER)
     private cacheManager: Cache,
   ) {
+    this.setUp();
+  }
+
+  private async setUp() {
     this.client = new WebTorrent();
 
     this.client.on('error', (err) => {
@@ -123,7 +128,7 @@ export class TorrentService {
       this.logger.log(`Queued ${realName}`);
       this.queued.push({ fileName: realName, path: downloadPath, url: torrentName, id });
 
-      this.cacheManager.set('queued:items', this.queued, { ttl: 0 });
+      this.cacheManager.set('queued:items', this.queued, 0);
 
       this.emitQueued({ fileName: realName, url: torrentName });
       return;
@@ -135,7 +140,7 @@ export class TorrentService {
   private startDownload(fileName: string, downloadPath: string, url: string, id: string, events: TorrentEvents) {
     this.downloading.push({ name: fileName, hash: '', path: downloadPath, intervalId: null, id, url, fileName });
 
-    this.cacheManager.set('download:items', this.downloading, { ttl: 0 });
+    this.cacheManager.set('download:items', this.downloading, 0);
 
     this.client.add(url, { path: downloadPath, maxWebConns: 200 }, (torrent) => {
       const realName = fileName || torrent.name;
@@ -184,7 +189,7 @@ export class TorrentService {
       }
 
       this.downloading = this.downloading.filter((tor) => tor.url !== url);
-      this.cacheManager.set('download:items', this.downloading, { ttl: 0 });
+      this.cacheManager.set('download:items', this.downloading, 0);
 
       setTimeout(() => torrent.destroy(), 100);
 
@@ -192,7 +197,7 @@ export class TorrentService {
 
       const next = this.queued.shift();
 
-      this.cacheManager.set('queued:items', this.queued, { ttl: 0 });
+      this.cacheManager.set('queued:items', this.queued, 0);
 
       if (next) {
         this.startDownload(next.fileName, next.path, next.url, next.id, events);
