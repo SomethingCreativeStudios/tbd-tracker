@@ -6,6 +6,7 @@ import { ConfigModule, ConfigService } from '../../config';
 @Module({
   imports: [
     CacheModule.registerAsync({
+      isGlobal: true,
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
         return {
@@ -14,7 +15,7 @@ import { ConfigModule, ConfigService } from '../../config';
               host: configService.redisConfig.host,
               port: configService.redisConfig.port,
             },
-            ttl: 0,
+            ttl: 86400 * 14,
           }),
         };
       },

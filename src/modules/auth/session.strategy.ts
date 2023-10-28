@@ -24,7 +24,7 @@ export class SessionStrategy extends PassportStrategy(Strategy, 'sessionid') {
     const token = request.headers['authorization']?.split('Bearer')?.[1]?.trim() ?? false;
 
     const foundSession = await this.cacheManager.get(`sess:${token}`);
-
+    console.log(foundSession, token);
     if (foundSession) {
       // @ts-ignore
       this.success(foundSession);

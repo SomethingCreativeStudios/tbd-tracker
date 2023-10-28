@@ -28,8 +28,8 @@ export class AuthService {
     const sessionId = createId(24);
 
     // set each token for 2 weeks
-    // ttl is in seconds
-    await this.cacheManager.set(`sess:${sessionId}`, { roleNames } as AuthUser, 86400 * 14);
+    // ttl is in miliseconds
+    await this.cacheManager.set(`sess:${sessionId}`, { roleNames } as AuthUser, 86400 * 14 * 1000);
 
     return {
       accessToken: sessionId,
