@@ -103,7 +103,7 @@ export class MalService {
     return results?.data.map((result) => this.toSeries(result.node, currentFolder, autoCreateFolder, +year, season));
   }
 
-  public async search(query: string, autoCreateFolder = false) {
+  public async search(query: string, autoCreateFolder = false, limit = 100) {
     const currentFolder = await this.animeFolderService.getCurrentFolder();
 
     if (!isNaN(+query)) {
@@ -112,7 +112,7 @@ export class MalService {
     }
 
     const results = await this.malClient.get<MalResults>(`anime`, {
-      limit: 100,
+      limit,
       fields: malFields,
       q: query,
     });
@@ -136,13 +136,13 @@ export class MalService {
   private toSeries(malResult: MalResult, currentFolder: string, autoCreateFolder: boolean, year?: number, season?: string): Series {
     const series = new Series();
 
-    series.airingData = new Date(malResult.start_date + 'T' + malResult.broadcast.start_time + '+09:00') || new Date();
+    series.airingData = malResult?.broadcast ? new Date(malResult.start_date + 'T' + malResult?.broadcast?.start_time + '+09:00') : new Date();
     series.description = malResult.synopsis;
     series.genres = malResult?.genres?.map((genre) => genre.name) ?? [];
     series.imageUrl = malResult.main_picture?.medium;
     series.name = malResult.title;
-    (series.otherNames = [...(malResult?.alternative_titles?.synonyms ?? []), malResult?.alternative_titles?.en, malResult?.alternative_titles?.ja]),
-      (series.numberOfEpisodes = malResult.num_episodes || 0);
+    series.otherNames = this.cleanUpName([...(malResult?.alternative_titles?.synonyms ?? []), malResult?.alternative_titles?.en]);
+    series.numberOfEpisodes = malResult.num_episodes || 0;
     series.score = +malResult.anime_score;
     series.studio = malResult.studios?.map((studio) => studio.name)?.join(' ') ?? '';
     if (year) {
@@ -166,5 +166,19 @@ export class MalService {
     ensureDirSync(folderName);
 
     return cleanName;
+  }
+
+  private cleanUpName(names: string[]) {
+    return names.reduce((acc, name) => {
+      if (name.trim().length === 0) return acc;
+
+      const hasSeason = name.toLowerCase().match('season (\\d+)');
+
+      if (hasSeason && hasSeason[1]) {
+        acc.push(name.toLowerCase().replace(`season ${hasSeason[1]}`, `S${hasSeason[1]}`));
+      }
+
+      return acc.concat(name);
+    }, []);
   }
 }

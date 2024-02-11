@@ -22,6 +22,13 @@ import { NyaaItem } from '../nyaa/models/nyaaItem';
 import { SubGroup } from '../sub-group/models';
 import { MalService } from '../mal/mal.service';
 import { IgnoreLinkService } from '../ignore-link/ignore-link.service';
+import { SyncResultsDTO } from './dtos/SyncResultsDTO';
+import { readdirSync, statSync } from 'fs-extra';
+import { join } from 'path';
+import { CreateSubGroupRuleDTO } from '../sub-group-rule/dtos/CreateSubGroupRuleDTO';
+import { CreateSubGroupDTO } from '../sub-group/dtos/CreateSubGroupDTO';
+import { SubGroupRuleService } from '../sub-group-rule/sub-group-rule.service';
+import { ExportResultDTO } from './dtos/ExportResultDTO';
 
 @Injectable()
 export class SeriesService {
@@ -31,6 +38,9 @@ export class SeriesService {
 
     @Inject(forwardRef(() => SubGroupService))
     private subgroupService: SubGroupService,
+
+    @Inject(forwardRef(() => SubGroupRuleService))
+    private subgroupRuleService: SubGroupRuleService,
 
     @Inject(forwardRef(() => SeasonService))
     private seasonService: SeasonService,
@@ -45,10 +55,11 @@ export class SeriesService {
     private readonly ignoreLinkService: IgnoreLinkService,
   ) {}
 
-  public async createFromSeason({ malIds, seasonName, seasonYear }: CreateBySeasonDTO) {
+  public async createFromSeason({ malIds, seasonName, seasonYear, folderMap }: CreateBySeasonDTO) {
     const newSeries = [] as Series[];
     for await (const id of malIds) {
-      const createdSeries = await this.createFromMALId({ seasonName, seasonYear, malId: id });
+      const createdSeries = await this.createFromMALId({ seasonName, seasonYear, malId: id, autoMatchFolders: !!folderMap });
+      createdSeries.folderPath = createdSeries.folderPath ?? folderMap[id];
       newSeries.push(createdSeries);
     }
 
@@ -127,6 +138,11 @@ export class SeriesService {
     return test;
   }
 
+  public async addSubGroup(seriesId: number, subGroup: CreateSubGroupDTO, rule: CreateSubGroupRuleDTO) {
+    const newGroup = await this.subgroupService.create({ ...subGroup, seriesId });
+    const newRule = await this.subgroupRuleService.createMany({ ...rule, subgroupId: newGroup.id });
+  }
+
   public async toggleWatchStatus(id: number) {
     const series = await this.findById(id);
     const { watchStatus } = series;
@@ -164,7 +180,17 @@ export class SeriesService {
 
   public async findBySeason(name: string, year: number, _sortBy: 'QUEUE' | 'NAME' | 'WATCH_STATUS' = 'QUEUE', onlyWithQueue: boolean) {
     const ignoreLinks = await this.ignoreLinkService.findAll();
-    const series = ((await this.seasonService.find(name as SeasonName, year))?.series ?? []).map((show) => ({ ...show, nextAiringDate: getClosestAiringDate(show.airingData) }));
+    const seasonSeries = (await this.seasonService.find(name as SeasonName, year))?.series ?? [];
+    const fileMap = {};
+
+    for await (const show of seasonSeries) {
+      fileMap[show.folderPath] = await this.mostRecentFile(show.folderPath, name, year + '');
+    }
+
+    const series = (seasonSeries ?? []).map((show) => ({
+      ...show,
+      nextAiringDate: getClosestAiringDate(show.airingData, fileMap[show.folderPath]),
+    }));
 
     const filteredQueue = (items: NyaaItem[], groups: SubGroup[]) =>
       items.filter((item) => {
@@ -197,15 +223,21 @@ export class SeriesService {
     const currentYear = await this.settingsService.findByKey('currentYear');
     const currentSeason = await this.settingsService.findByKey('currentSeason');
 
+    const fileMap = {};
+
+    for await (const show of series) {
+      fileMap[show.folderPath] = await this.mostRecentFile(show.folderPath, currentSeason.value, currentYear.value + '');
+    }
+
     return series
       .filter((found) => found.season.name === overrideSeason || (currentSeason.value && found.season.year === (overrideYear || Number(currentYear.value))))
-      .map((series) => ({ ...series, nextAiringDate: getClosestAiringDate(series.airingData) }));
+      .map((series) => ({ ...series, nextAiringDate: getClosestAiringDate(series.airingData, fileMap[series.folderPath]) }));
   }
 
   public async findById(seriesId: number) {
     const series = await this.seriesRepository.findOne({ relations: ['season', 'subgroups', 'subgroups.rules'], where: { id: seriesId } });
 
-    return { ...series, nextAiringDate: getClosestAiringDate(series.airingData) };
+    return { ...series, nextAiringDate: getClosestAiringDate(series.airingData, await this.mostRecentFile(series.folderPath)) };
   }
 
   public async searchByMALSeason({ season, year }: MalSearchDTO) {
@@ -248,5 +280,67 @@ export class SeriesService {
     await this.animeFolderService.migrateSeries(foundSeries.folderPath, currentSeason.name, currentSeason.year, foundSeason.name, foundSeason.year);
 
     return true;
+  }
+
+  public async syncWithLocalSeason(): Promise<SyncResultsDTO[]> {
+    const season = await this.settingsService.findByKey('currentSeason');
+    const year = await this.settingsService.findByKey('currentYear');
+
+    const folders = await this.animeFolderService.getFolders(season.value, year.value);
+    const series = await this.findBySeason(season.value, +year.value, 'NAME', false);
+    const newSeries = folders.filter((folder) => {
+      return !series.find((show) => show.folderPath.endsWith(folder));
+    });
+
+    const results = await Promise.all(newSeries.map((name) => this.syncWithLocal(name)));
+
+    return results;
+  }
+
+  public async exportAll(): Promise<ExportResultDTO[]> {
+    const series = await this.seriesRepository.find({ relations: ['season', 'subgroups', 'subgroups.rules'] });
+
+    return series.map((show) => {
+      return {
+        malId: show.malId + '',
+        altNames: show.otherNames.join(','),
+        tags: show.tags.join(','),
+        downloaded: show.downloaded,
+        folderName: show.folderPath,
+        overrideName: show.showName,
+        countRegex: show.episodeRegex,
+        overrideOffset: show.offset,
+        subgroupName: show.subgroups[0]?.name,
+        ruleType: show.subgroups?.[0]?.rules[0]?.ruleType ?? '',
+        ruleText: show.subgroups?.[0]?.rules[0]?.text ?? '',
+        seasonName: show.season.name,
+        seasonYear: show.season.year,
+      };
+    });
+  }
+
+  private async syncWithLocal(folderName: string): Promise<SyncResultsDTO> {
+    const result = new SyncResultsDTO();
+
+    result.folderName = folderName;
+
+    const malResults = await this.malService.search(folderName, false, 10);
+
+    result.options = malResults.map((malResult) => ({ malId: malResult.malId, name: malResult.name, description: malResult.description, imagePath: malResult.imageUrl }));
+
+    return result;
+  }
+
+  private async mostRecentFile(folderName, season?: string, year?: string, offset = 0) {
+    try {
+      const files = readdirSync(join(await this.animeFolderService.getCurrentFolder(season, year), folderName), { withFileTypes: true }).filter((item) => item.isFile());
+
+      return files.reduce((acc, file) => {
+        const birthDay = statSync(join(file.path, file.name)).birthtime;
+        return isAfter(birthDay, acc) ? birthDay : acc;
+      }, new Date('1970-01-01T00:00:00.000Z'));
+    } catch (e) {
+      return null;
+    }
   }
 }

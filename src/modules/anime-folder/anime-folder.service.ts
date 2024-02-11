@@ -20,11 +20,11 @@ export class AnimeFolderService {
 
     @Inject(forwardRef(() => SeriesService))
     private readonly seriesService: SeriesService,
-  ) { }
+  ) {}
 
   public async getCurrentFolder(season?: string, year?: string) {
-    const currentYear = year || (await this.settingsService.findByKey('currentYear'))?.value || "2022";
-    const currentSeason = season || (await this.settingsService.findByKey('currentSeason'))?.value || "winter";
+    const currentYear = year || (await this.settingsService.findByKey('currentYear'))?.value || '2022';
+    const currentSeason = season || (await this.settingsService.findByKey('currentSeason'))?.value || 'winter';
 
     return join(this.configService.baseFolder, currentYear, currentSeason as any);
   }
@@ -33,8 +33,8 @@ export class AnimeFolderService {
     ensureDirSync(join(await this.getCurrentFolder(season, year), sanitizeFilename(name)));
   }
 
-  public async getFolders() {
-    const currentPath = await this.getCurrentFolder();
+  public async getFolders(season?: string, year?: string) {
+    const currentPath = await this.getCurrentFolder(season, year);
 
     ensureDirSync(currentPath);
 

@@ -7,7 +7,7 @@ services:
     ports:
       - '5434:5432'
     volumes:
-      - dumps:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
 volumes:
     dumps:

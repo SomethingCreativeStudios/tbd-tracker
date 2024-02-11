@@ -12,6 +12,7 @@ import { SocketModule } from '../socket/socket.module';
 import { GlobalCacheModule } from '../global-cache/global-cache.module';
 import { MalModule } from '../mal/mal.module';
 import { IgnoreLinkModule } from '../ignore-link/ignore-link.module';
+import { SubgroupRuleModule } from '../sub-group-rule/sub-group-rule.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { IgnoreLinkModule } from '../ignore-link/ignore-link.module';
     MalModule,
     IgnoreLinkModule,
     forwardRef(() => SubgroupModule),
+    forwardRef(() => SubgroupRuleModule),
     forwardRef(() => SeasonModule),
     forwardRef(() => NyaaModule),
     forwardRef(() => AnimeFolderModule),

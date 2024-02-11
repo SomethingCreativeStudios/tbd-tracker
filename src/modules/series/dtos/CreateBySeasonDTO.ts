@@ -12,4 +12,6 @@ export class CreateBySeasonDTO {
   @IsString()
   @Type(() => Number)
   malIds: number[];
+
+  folderMap: Record<number, string>;
 }

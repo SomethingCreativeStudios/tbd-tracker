@@ -153,7 +153,7 @@ export class NyaaService {
         await this.seriesService.syncWithMal(show.id);
         await this.syncShow(show, season, year);
       } catch (ex) {
-        console.log('Error syncing show', show.name);
+        console.log('Error syncing show', show.name, ex);
       }
     }
   }
@@ -257,20 +257,48 @@ export class NyaaService {
     }
 
     if (series.subgroups.length === 0) {
-      const approvedSubGroups = await this.settingsService.findByKey('approvedSubgroups');
+      const approvedSubGroups = (await this.settingsService.findByKey('approvedSubgroups')) ?? { value: '' };
+      const approvedSubGroupsValue = approvedSubGroups.value.split(',').map((item) => item.trim());
       const suggestedSubgroups = await this.suggestSubgroups(series.name, series.otherNames, series.episodeRegex);
       const isReasonableDate = (date: Date) => series.airingData < date;
       const allGoodGroups = suggestedSubgroups.filter((suggestion) => isReasonableDate(suggestion.pubDate) && approvedSubGroups.value.toLowerCase().includes(suggestion.subgroup.name.toLowerCase()));
 
-      await this.seriesService.update({ id: series.id, hasSubgroupsPending: allGoodGroups.length > 0 });
+      const autoAddedGroup = allGoodGroups.find((group) => group.subgroup.name.toLowerCase() === approvedSubGroupsValue[0]?.toLowerCase());
 
-      this.socketService.nyaaSocket.emit('series-syncing', {
-        id: series.id,
-        type: 'PENDING',
-        queue: allGoodGroups,
-      });
+      if (!autoAddedGroup) {
+        this.socketService.nyaaSocket.emit('series-syncing', {
+          id: series.id,
+          type: 'PENDING',
+          queue: allGoodGroups,
+        });
 
-      this.waitFor(400);
+        this.waitFor(400);
+        return;
+      }
+
+      const goodGroup = autoAddedGroup.subgroup;
+      const goodRule = goodGroup.rules[0];
+
+      await this.seriesService.addSubGroup(
+        series.id,
+        {
+          name: goodGroup.name,
+          preferedResultion: goodGroup.preferedResultion,
+          seriesId: series.id,
+        },
+        {
+          subgroupId: 0,
+          rules: [
+            {
+              isPositive: goodRule.isPositive,
+              ruleType: goodRule.ruleType,
+              text: goodRule.text,
+            },
+          ],
+        },
+      );
+
+      this.syncShow(await this.seriesService.findById(series.id), season, year);
       return;
     }
 
@@ -369,7 +397,10 @@ export class NyaaService {
       return -1;
     }
 
-    const matches = (parts[parts.length - 1].match(/\d+/) || [])[0] || '-1';
+    const partToCheck = parts[parts.length - 1];
+    const undeadCheck = partToCheck.match(/E(\d+) /);
+
+    const matches = undeadCheck?.length ? undeadCheck?.[1] : (partToCheck.match(/\d+/) || [])[0] || '-1';
 
     return Number(matches);
   }

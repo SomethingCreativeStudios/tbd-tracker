@@ -19,7 +19,11 @@ import { SeasonName } from '../season/models';
 
 @WebSocketGateway(8180, { namespace: 'series', transports: ['websocket'] })
 export class SeriesGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
-  constructor(private seriesService: SeriesService, private folderService: AnimeFolderService, private socketService: SocketService) {}
+  constructor(
+    private seriesService: SeriesService,
+    private folderService: AnimeFolderService,
+    private socketService: SocketService,
+  ) {}
   afterInit(server: Server) {
     this.socketService.seriesSocket = server;
   }
@@ -73,6 +77,12 @@ export class SeriesGateway implements OnGatewayInit, OnGatewayConnection, OnGate
     }
 
     return this.seriesService.findBySeason(season, +year, sortBy as any, hasQueue);
+  }
+
+  @UseGuards(SocketGuard)
+  @SubscribeMessage('sync-local')
+  async syncLocal() {
+    return this.seriesService.syncWithLocalSeason();
   }
 
   @UseGuards(SocketGuard)
@@ -135,5 +145,11 @@ export class SeriesGateway implements OnGatewayInit, OnGatewayConnection, OnGate
   @SubscribeMessage('sync-mal-image')
   async syncImageWithMal(@MessageBody() id: number) {
     return this.seriesService.syncImage(id);
+  }
+
+  @UseGuards(SocketGuard)
+  @SubscribeMessage('export-shows')
+  async exportAll(@MessageBody() id: number) {
+    return this.seriesService.exportAll();
   }
 }

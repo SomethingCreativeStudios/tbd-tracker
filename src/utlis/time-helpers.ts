@@ -1,9 +1,9 @@
-import { addDays, addWeeks, eachWeekOfInterval, formatDistance, isFuture } from 'date-fns';
+import { addDays, addWeeks, eachWeekOfInterval, formatDistance, isAfter, isBefore, isFuture, isToday } from 'date-fns';
 
 export function toDate(dateString: string) {
   return addDays(new Date(dateString), 1);
 }
-export function getClosestAiringDate(airingDate: Date, currentDate = new Date()) {
+export function getClosestAiringDate(airingDate: Date, mostRecentFile: Date, currentDate = new Date()) {
   if (isFuture(airingDate)) {
     return airingDate;
   }
@@ -11,7 +11,7 @@ export function getClosestAiringDate(airingDate: Date, currentDate = new Date())
   try {
     const range = eachWeekOfInterval({ start: airingDate, end: addWeeks(currentDate, 1) }, { weekStartsOn: airingDate.getDay() as any });
 
-    const daDate = range.find((date) => isFuture(date));
+    const daDate = range.find((date) => (isToday(date) && isBefore(mostRecentFile, date)) || isFuture(date));
 
     daDate.setHours(airingDate.getHours());
     daDate.setMinutes(airingDate.getMinutes());
@@ -29,6 +29,10 @@ export function getAiringTime(airingDate: Date, currentDate = new Date()) {
   }
 
   const nextDate = getClosestAiringDate(airingDate, currentDate);
+
+  if (isToday(nextDate) && isBefore(nextDate, currentDate)) {
+    return 'Sometime Today...';
+  }
 
   return formatDistance(nextDate, currentDate, { addSuffix: true });
 }
